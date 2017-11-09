@@ -9,6 +9,7 @@ class ParseState {
 	private long charPos;
 	private boolean charWasConsumed;
 	private BufferedReader input;
+	private boolean isEOF;
 	
 	public ParseState() {
 		this.ch = 0;
@@ -18,13 +19,14 @@ class ParseState {
 	
 	boolean readChar() throws IOException {
 		ch = input.read();
-		++charPos;
 		charWasConsumed = false;
-		return ch>=0;
+		isEOF = (ch<0);
+		if (!isEOF) ++charPos;
+		return !isEOF;
 	}
 	
-	int getChar() {
-		return ch;
+	char getChar() {
+		return (char)ch;
 	}
 
 	long getCharPos() {
@@ -40,6 +42,35 @@ class ParseState {
 	
 	void setParseInput(BufferedReader input) {
 		this.input = input;
+	}
+
+	boolean isEOF() {
+		return isEOF;
+	}
+
+	public boolean isWhiteSpace() {
+		return ch<=' ';
+	}
+
+	public void skipWhiteSpaces() {
+		try {
+			while (!wasCharConsumed() || readChar()) {
+				if (!isWhiteSpace()) break;
+				setCharConsumed();
+			}
+		} catch (IOException e1) { e1.printStackTrace(); }
+	}
+
+	public boolean readKnownChars(String string) {
+		for (int i=0; i<string.length(); ++i) {
+			try { if (!readChar()) return false; }
+			catch (IOException e) { e.printStackTrace(); }
+			if (getChar() != string.charAt(i) )
+				return false;
+			else
+				setCharConsumed();
+		}
+		return true;
 	}
 	
 }
