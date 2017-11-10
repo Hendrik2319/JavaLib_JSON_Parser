@@ -3,7 +3,6 @@ package net.schwarzbaer.java.lib.jsonparser;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
@@ -11,92 +10,86 @@ import java.util.Vector;
 
 public class JSON_Parser {
 	private File sourcefile;
-	private ParseState currentState;
+	private ParseInput parseInput;
 
-	public JSON_Parser( File sourcefile ) throws FileNotFoundException {
+	public JSON_Parser( File sourcefile ) {
 		this.sourcefile = sourcefile;
-		this.currentState = new ParseState();
-		if (!sourcefile.isFile()) throw new FileNotFoundException(String.format("Can't find file \"%s\".", sourcefile.getPath()));
+		this.parseInput = new ParseInput();
 	}
 
 	public JSON_Object parse() {
 		//return createTestObject();
 		
-		BufferedReader input;
-		try { input = new BufferedReader(new InputStreamReader(new FileInputStream(sourcefile), StandardCharsets.UTF_8) ); }
-		catch (FileNotFoundException e1) { e1.printStackTrace(); return null; }
-		currentState.setParseInput(input);
-		
 		JSON_Object json_Object = null;
 		
-		try {
-			currentState.skipWhiteSpaces();
+		try ( BufferedReader input = new BufferedReader(new InputStreamReader(new FileInputStream(sourcefile), StandardCharsets.UTF_8) ) ) {
+			parseInput.setReader(input);
 			
-			if (currentState.getChar()=='{') {
-				currentState.setCharConsumed();
-				json_Object = read_Object(input);
+			parseInput.skipWhiteSpaces();
+			
+			if (parseInput.getChar()=='{') {
+				parseInput.setCharConsumed();
+				json_Object = read_Object();
 			}
-		} catch (ParseException e1) {
-			e1.printStackTrace();
-		}
+			
+		} catch (ParseException | IOException e) { e.printStackTrace(); }
 		
-		try { input.close(); } catch (IOException e) {}
 		
 		return json_Object;
 	}
 
-	private Value read_Value(BufferedReader input) throws ParseException {
-		currentState.skipWhiteSpaces();
+	private Value read_Value() throws ParseException {
+		parseInput.skipWhiteSpaces();
 		
-		if (currentState.getChar()=='-' || ('0'<=currentState.getChar() && currentState.getChar()<='9')) {
-			IntFloat number = read_Number(input);
+		if (parseInput.getChar()=='-' || ('0'<=parseInput.getChar() && parseInput.getChar()<='9')) {
+			IntFloat number = read_Number();
 			if (number.isInt  ()) return new IntegerValue(number.getInt  ());
 			if (number.isFloat()) return new FloatValue  (number.getFloat());
-			throw new ParseException("Parsed number should be integer or float.",currentState.getCharPos());
+			throw new ParseException("Parsed number should be integer or float.",parseInput.getCharPos());
 		}
-		if (currentState.getChar()=='f' || currentState.getChar()=='t') {
-			boolean bool = read_Bool(input);
+		if (parseInput.getChar()=='f' || parseInput.getChar()=='t') {
+			boolean bool = read_Bool();
 			return new BoolValue(bool);
 		}
-		if (currentState.getChar()=='"') {
-			String str = read_String(input);
+		if (parseInput.getChar()=='"') {
+			String str = read_String();
 			return new StringValue(str);
 		}
-		if (currentState.getChar()=='[') {
-			currentState.setCharConsumed();
-			JSON_Array array = read_Array(input);
+		if (parseInput.getChar()=='[') {
+			parseInput.setCharConsumed();
+			JSON_Array array = read_Array();
 			return new ArrayValue(array);
 		}
-		if (currentState.getChar()=='{') {
-			currentState.setCharConsumed();
-			JSON_Object obj = read_Object(input);
+		if (parseInput.getChar()=='{') {
+			parseInput.setCharConsumed();
+			JSON_Object obj = read_Object();
 			return new ObjectValue(obj);
 		}
-		throw new ParseException("Unexpected character at beginning of value.",currentState.getCharPos());
+		throw new ParseException("Unexpected character at beginning of value.",parseInput.getCharPos());
 	}
 
-	private NamedValue read_NamedValue(BufferedReader input) throws ParseException {
+	private NamedValue read_NamedValue() throws ParseException {
 		String name = null;
 		
-		currentState.skipWhiteSpaces();
+		parseInput.skipWhiteSpaces();
 		
-		if (currentState.getChar()=='"') {
-			name = read_String(input);
+		if (parseInput.getChar()=='"') {
+			name = read_String();
 		} else
-			throw new ParseException("Name string expected at beginning of object value.",currentState.getCharPos());
+			throw new ParseException("Name string expected at beginning of object value.",parseInput.getCharPos());
 		
-		currentState.skipWhiteSpaces();
+		parseInput.skipWhiteSpaces();
 			
-		if (currentState.getChar()==':') {
-			currentState.setCharConsumed();
+		if (parseInput.getChar()==':') {
+			parseInput.setCharConsumed();
 		} else
-			throw new ParseException("Character ':' expected after name string in object value.",currentState.getCharPos());
+			throw new ParseException("Character ':' expected after name string in object value.",parseInput.getCharPos());
 		
-		Value value = read_Value(input);
+		Value value = read_Value();
 		return new NamedValue(name, value);
 	}
 
-	private JSON_Object read_Object(BufferedReader input) throws ParseException {
+	private JSON_Object read_Object() throws ParseException {
 		// pre: last char was consumed
 		// post: last char is consumed
 		
@@ -104,33 +97,33 @@ public class JSON_Parser {
 		
 		while (true) {
 			
-			currentState.skipWhiteSpaces();
+			parseInput.skipWhiteSpaces();
 				
-			if (currentState.getChar()=='}') {
-				currentState.setCharConsumed();
+			if (parseInput.getChar()=='}') {
+				parseInput.setCharConsumed();
 				return json_Object;
 			}
 				
-			NamedValue value = read_NamedValue(input);
+			NamedValue value = read_NamedValue();
 			json_Object.add(value);
 			
-			currentState.skipWhiteSpaces();
+			parseInput.skipWhiteSpaces();
 			
-			if (currentState.getChar()==',') {
-				currentState.setCharConsumed();
+			if (parseInput.getChar()==',') {
+				parseInput.setCharConsumed();
 				continue;
 			}
 			
-			if (currentState.getChar()=='}') {
-				currentState.setCharConsumed();
+			if (parseInput.getChar()=='}') {
+				parseInput.setCharConsumed();
 				return json_Object;
 			}
 			
-			throw new ParseException("Unexpected character after object value.",currentState.getCharPos());
+			throw new ParseException("Unexpected character after object value.",parseInput.getCharPos());
 		}
 	}
 
-	private JSON_Array read_Array(BufferedReader input) throws ParseException {
+	private JSON_Array read_Array() throws ParseException {
 		// pre: last char was consumed
 		// post: last char is consumed
 		
@@ -138,50 +131,50 @@ public class JSON_Parser {
 		
 		while (true) {
 			
-			currentState.skipWhiteSpaces();
+			parseInput.skipWhiteSpaces();
 				
-			if (currentState.getChar()==']') {
-				currentState.setCharConsumed();
+			if (parseInput.getChar()==']') {
+				parseInput.setCharConsumed();
 				return json_Array;
 			}
 				
-			Value value = read_Value(input);
+			Value value = read_Value();
 			json_Array.add(value);
 			
-			currentState.skipWhiteSpaces();
+			parseInput.skipWhiteSpaces();
 			
-			if (currentState.getChar()==',') {
-				currentState.setCharConsumed();
+			if (parseInput.getChar()==',') {
+				parseInput.setCharConsumed();
 				continue;
 			}
 			
-			if (currentState.getChar()==']') {
-				currentState.setCharConsumed();
+			if (parseInput.getChar()==']') {
+				parseInput.setCharConsumed();
 				return json_Array;
 			}
 			
-			throw new ParseException("Unexpected character after object value.",currentState.getCharPos());
+			throw new ParseException("Unexpected character after object value.",parseInput.getCharPos());
 		}
 	}
 
-	private boolean read_Bool(BufferedReader input) throws ParseException {
+	private boolean read_Bool() throws ParseException {
 		// pre: last char was NOT consumed
 		// post: last char is consumed
 		
-		if (currentState.getChar()=='f') {
-			if (!currentState.readKnownChars("alse")) 
-				throw new ParseException("Unexpected keyword.",currentState.getCharPos());
+		if (parseInput.getChar()=='f') {
+			if (!parseInput.readKnownChars("alse")) 
+				throw new ParseException("Unexpected keyword.",parseInput.getCharPos());
 			return false;
 		}
-		if (currentState.getChar()=='t') {
-			if (!currentState.readKnownChars("rue")) 
-				throw new ParseException("Unexpected keyword.",currentState.getCharPos());
+		if (parseInput.getChar()=='t') {
+			if (!parseInput.readKnownChars("rue")) 
+				throw new ParseException("Unexpected keyword.",parseInput.getCharPos());
 			return true;
 		}
-		throw new ParseException("Unexpected keyword.",currentState.getCharPos());
+		throw new ParseException("Unexpected keyword.",parseInput.getCharPos());
 	}
 
-	private IntFloat read_Number(BufferedReader input) throws ParseException {
+	private IntFloat read_Number() throws ParseException {
 		// pre: last char was NOT consumed
 		// post: last char is NOT consumed
 		
@@ -191,41 +184,41 @@ public class JSON_Parser {
 		long    fraction = 0;
 		double  fractionFactor = 1;
 		
-		if (currentState.getChar()=='-') {
-			currentState.setCharConsumed();
+		if (parseInput.getChar()=='-') {
+			parseInput.setCharConsumed();
 			isNegative = true;
 		}
 		
 		try {
-			while (!currentState.wasCharConsumed() || currentState.readChar()) {
-				if ('0'<=currentState.getChar() && currentState.getChar()<='9') {
+			while (!parseInput.wasCharConsumed() || parseInput.readChar()) {
+				if ('0'<=parseInput.getChar() && parseInput.getChar()<='9') {
 					intValue *= 10;
-					intValue += (currentState.getChar()-'0');
-					currentState.setCharConsumed();
+					intValue += (parseInput.getChar()-'0');
+					parseInput.setCharConsumed();
 				}
 				else
 					break;
 			}
 		} catch (IOException e1) {
-			throw new ParseException("IOException while parsing a number.\r\nIOException: "+e1.getMessage(),currentState.getCharPos());
+			throw new ParseException("IOException while parsing a number.\r\nIOException: "+e1.getMessage(),parseInput.getCharPos());
 		}
 		
-		if (currentState.getChar()=='.') {
+		if (parseInput.getChar()=='.') {
 			hasFraction = true;
 			
 			try {
-				while (currentState.readChar()) {
-					if ('0'<=currentState.getChar() && currentState.getChar()<='9') {
+				while (parseInput.readChar()) {
+					if ('0'<=parseInput.getChar() && parseInput.getChar()<='9') {
 						fractionFactor *= 10;
 						fraction *= 10;
-						fraction += (currentState.getChar()-'0');
-						currentState.setCharConsumed();
+						fraction += (parseInput.getChar()-'0');
+						parseInput.setCharConsumed();
 					}
 					else
 						break;
 				}
 			} catch (IOException e1) {
-				throw new ParseException("IOException while parsing a number.\r\nIOException: "+e1.getMessage(),currentState.getCharPos());
+				throw new ParseException("IOException while parsing a number.\r\nIOException: "+e1.getMessage(),parseInput.getCharPos());
 			}
 		}
 		
@@ -235,26 +228,26 @@ public class JSON_Parser {
 			return new IntFloat( (isNegative?-1:1) * (intValue) );
 	}
 
-	private String read_String(BufferedReader input) throws ParseException {
+	private String read_String() throws ParseException {
 		// pre: last char was NOT consumed
 		// post: last char is consumed
 		
-		if (currentState.getChar()!='"')
-			throw new ParseException("Unexpected character to enclose strings.",currentState.getCharPos());
+		if (parseInput.getChar()!='"')
+			throw new ParseException("Unexpected character to enclose strings.",parseInput.getCharPos());
 		
 		char endChar = '"';
 		StringBuilder sb = new StringBuilder();
 		try {
-			while (currentState.readChar()) {
-				if (currentState.getChar()!=endChar)
-					sb.append(currentState.getChar());
+			while (parseInput.readChar()) {
+				if (parseInput.getChar()!=endChar)
+					sb.append(parseInput.getChar());
 				else {
-					currentState.setCharConsumed();
+					parseInput.setCharConsumed();
 					break;
 				}
 			}
 		} catch (IOException e1) {
-			throw new ParseException("IOException while parsing.\r\nIOException: "+e1.getMessage(),currentState.getCharPos());
+			throw new ParseException("IOException while parsing.\r\nIOException: "+e1.getMessage(),parseInput.getCharPos());
 		}
 		
 		return sb.toString();
@@ -362,29 +355,29 @@ public class JSON_Parser {
 		}
 	}
 	
-	public enum ValueType { Array, Object, String, Bool, Integer, Float }
-
 	public static abstract class Value {
-		public final ValueType valueType;
+		
+		public enum Type { Array, Object, String, Bool, Integer, Float }
+		public final Type type;
 
-		public Value(ValueType valueType) {
-			this.valueType = valueType;
+		public Value(Type type) {
+			this.type = type;
 		}
 	}
 	
 	public static class GenericValue<T> extends Value {
 		public T value;
 
-		public GenericValue(T value, ValueType valueType) {
-			super(valueType);
+		public GenericValue(T value, Type type) {
+			super(type);
 			this.value = value;
 		}
 	}
 	
-	public static class ArrayValue   extends GenericValue<JSON_Array>  { public ArrayValue  (JSON_Array  value) { super(value, ValueType.Array  ); } }
-	public static class ObjectValue  extends GenericValue<JSON_Object> { public ObjectValue (JSON_Object value) { super(value, ValueType.Object ); } }
-	public static class StringValue  extends GenericValue<String>      { public StringValue (String      value) { super(value, ValueType.String ); } }
-	public static class BoolValue    extends GenericValue<Boolean>     { public BoolValue   (boolean     value) { super(value, ValueType.Bool   ); } }
-	public static class IntegerValue extends GenericValue<Long>        { public IntegerValue(long        value) { super(value, ValueType.Integer); } }
-	public static class FloatValue   extends GenericValue<Double>      { public FloatValue  (double      value) { super(value, ValueType.Float  ); } }
+	public static class ArrayValue   extends GenericValue<JSON_Array>  { public ArrayValue  (JSON_Array  value) { super(value, Type.Array  ); } }
+	public static class ObjectValue  extends GenericValue<JSON_Object> { public ObjectValue (JSON_Object value) { super(value, Type.Object ); } }
+	public static class StringValue  extends GenericValue<String>      { public StringValue (String      value) { super(value, Type.String ); } }
+	public static class BoolValue    extends GenericValue<Boolean>     { public BoolValue   (boolean     value) { super(value, Type.Bool   ); } }
+	public static class IntegerValue extends GenericValue<Long>        { public IntegerValue(long        value) { super(value, Type.Integer); } }
+	public static class FloatValue   extends GenericValue<Double>      { public FloatValue  (double      value) { super(value, Type.Float  ); } }
 }

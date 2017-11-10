@@ -3,7 +3,7 @@ package net.schwarzbaer.java.lib.jsonparser;
 import java.io.BufferedReader;
 import java.io.IOException;
 
-class ParseState {
+class ParseInput {
 	
 	private int ch;
 	private long charPos;
@@ -11,7 +11,7 @@ class ParseState {
 	private BufferedReader input;
 	private boolean isEOF;
 	
-	public ParseState() {
+	ParseInput() {
 		this.ch = 0;
 		this.charPos = -1;
 		this.charWasConsumed = false;
@@ -40,7 +40,7 @@ class ParseState {
 		return charWasConsumed;
 	}
 	
-	void setParseInput(BufferedReader input) {
+	void setReader(BufferedReader input) {
 		this.input = input;
 	}
 
