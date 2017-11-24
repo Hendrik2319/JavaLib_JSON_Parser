@@ -353,6 +353,12 @@ public class JSON_Parser {
 			this.name = name;
 			this.value = value;
 		}
+
+		@Override
+		public String toString() {
+			return "NamedValue [name=\""+name+"\", value="+value+"]";
+		}
+		
 	}
 	
 	public static abstract class Value {
@@ -362,6 +368,11 @@ public class JSON_Parser {
 
 		public Value(Type type) {
 			this.type = type;
+		}
+
+		@Override
+		public String toString() {
+			return ""+type;
 		}
 	}
 	
@@ -374,10 +385,10 @@ public class JSON_Parser {
 		}
 	}
 	
-	public static class ArrayValue   extends GenericValue<JSON_Array>  { public ArrayValue  (JSON_Array  value) { super(value, Type.Array  ); } }
-	public static class ObjectValue  extends GenericValue<JSON_Object> { public ObjectValue (JSON_Object value) { super(value, Type.Object ); } }
-	public static class StringValue  extends GenericValue<String>      { public StringValue (String      value) { super(value, Type.String ); } }
-	public static class BoolValue    extends GenericValue<Boolean>     { public BoolValue   (boolean     value) { super(value, Type.Bool   ); } }
-	public static class IntegerValue extends GenericValue<Long>        { public IntegerValue(long        value) { super(value, Type.Integer); } }
-	public static class FloatValue   extends GenericValue<Double>      { public FloatValue  (double      value) { super(value, Type.Float  ); } }
+	public static class ArrayValue   extends GenericValue<JSON_Array>  { public ArrayValue  (JSON_Array  value) { super(value, Type.Array  ); } @Override public String toString() { return super.toString()+"["+value.size()+"]"; } }
+	public static class ObjectValue  extends GenericValue<JSON_Object> { public ObjectValue (JSON_Object value) { super(value, Type.Object ); } @Override public String toString() { return super.toString()+"{"+value.size()+"}"; } }
+	public static class StringValue  extends GenericValue<String>      { public StringValue (String      value) { super(value, Type.String ); } @Override public String toString() { return super.toString()+"(\""+value+"\")"; } }
+	public static class BoolValue    extends GenericValue<Boolean>     { public BoolValue   (boolean     value) { super(value, Type.Bool   ); } @Override public String toString() { return super.toString()+"("  +value+  ")"; } }
+	public static class IntegerValue extends GenericValue<Long>        { public IntegerValue(long        value) { super(value, Type.Integer); } @Override public String toString() { return super.toString()+"("  +value+  ")"; } }
+	public static class FloatValue   extends GenericValue<Double>      { public FloatValue  (double      value) { super(value, Type.Float  ); } @Override public String toString() { return super.toString()+"("  +value+  ")"; } }
 }
