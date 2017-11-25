@@ -153,7 +153,7 @@ public class JSON_Parser {
 				return json_Array;
 			}
 			
-			throw new ParseException("Unexpected character after object value.",parseInput.getCharPos());
+			throw new ParseException("Unexpected character after array value.",parseInput.getCharPos());
 		}
 	}
 
@@ -178,11 +178,15 @@ public class JSON_Parser {
 		// pre: last char was NOT consumed
 		// post: last char is NOT consumed
 		
-		boolean isNegative = false;
+		// 7.706607796365006e-9
+		
 		boolean hasFraction = false;
+		boolean isNegative = false;
 		long    intValue = 0;
 		long    fraction = 0;
 		double  fractionFactor = 1;
+		long    expValue = 0;
+		boolean isExpNegative = false;
 		
 		if (parseInput.getChar()=='-') {
 			parseInput.setCharConsumed();
@@ -222,10 +226,48 @@ public class JSON_Parser {
 			}
 		}
 		
-		if (hasFraction)
-			return new IntFloat( (isNegative?-1:1) * (intValue + fraction/fractionFactor) );
-		else
-			return new IntFloat( (isNegative?-1:1) * (intValue) );
+		if (parseInput.getChar()=='e') {
+			try {
+				if (parseInput.readChar()) {
+					if (parseInput.getChar()=='-') {
+						isExpNegative = true;
+						parseInput.setCharConsumed();
+					}
+				}
+				
+				while (!parseInput.wasCharConsumed() || parseInput.readChar()) {
+					if ('0'<=parseInput.getChar() && parseInput.getChar()<='9') {
+						expValue *= 10;
+						expValue += (parseInput.getChar()-'0');
+						parseInput.setCharConsumed();
+					}
+					else
+						break;
+				}
+			} catch (IOException e1) {
+				throw new ParseException("IOException while parsing a number.\r\nIOException: "+e1.getMessage(),parseInput.getCharPos());
+			}
+		}
+		
+		double expFactor = 1;
+		if (expValue!=0) {
+			if (isExpNegative)
+				expFactor = -1;
+			for (int i=0; i<expValue; ++i)
+				expFactor *= 10;
+		}
+		
+		if (hasFraction) {
+			if (expValue==0)
+				return new IntFloat( (isNegative?-1:1) * (intValue + fraction/fractionFactor) );
+			else
+				return new IntFloat( (isNegative?-1:1) * (intValue + fraction/fractionFactor) * expFactor );
+		} else {
+			if (expValue==0)
+				return new IntFloat( (isNegative?-1:1) * (intValue) );
+			else
+				return new IntFloat( (isNegative?-1:1) * (intValue) * expFactor );
+		}
 	}
 
 	private String read_String() throws ParseException {
