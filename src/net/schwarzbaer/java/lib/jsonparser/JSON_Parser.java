@@ -6,7 +6,17 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.util.Vector;
+
+import net.schwarzbaer.java.lib.jsonparser.JSON_Data.ArrayValue;
+import net.schwarzbaer.java.lib.jsonparser.JSON_Data.BoolValue;
+import net.schwarzbaer.java.lib.jsonparser.JSON_Data.FloatValue;
+import net.schwarzbaer.java.lib.jsonparser.JSON_Data.IntegerValue;
+import net.schwarzbaer.java.lib.jsonparser.JSON_Data.JSON_Array;
+import net.schwarzbaer.java.lib.jsonparser.JSON_Data.JSON_Object;
+import net.schwarzbaer.java.lib.jsonparser.JSON_Data.NamedValue;
+import net.schwarzbaer.java.lib.jsonparser.JSON_Data.ObjectValue;
+import net.schwarzbaer.java.lib.jsonparser.JSON_Data.StringValue;
+import net.schwarzbaer.java.lib.jsonparser.JSON_Data.Value;
 
 public class JSON_Parser {
 	private File sourcefile;
@@ -356,81 +366,4 @@ public class JSON_Parser {
 		}
 	
 	}
-	
-	public class JSON_Object extends Vector<NamedValue> {
-		private static final long serialVersionUID = -8191469330084921029L;
-	}
-	
-	public class JSON_Array extends Vector<Value> {
-		private static final long serialVersionUID = -8537671053731284735L;
-
-//		private ValueType valueType;
-//		
-//		
-//		public JSON_Array() {
-//			this.valueType = null;
-//		}
-//		
-//		public boolean hasMixedContent() {
-//			return !isEmpty() && (valueType == null);
-//		}
-//
-//		@Override
-//		public synchronized boolean add(Value value) {
-//			if (isEmpty())
-//				valueType = value.valueType;
-//			else
-//				if (valueType != value.valueType)
-//					valueType = null;
-//			return super.add(value);
-//		}
-		
-	}
-
-	public static class NamedValue {
-		public String name;
-		public Value value;
-		
-		public NamedValue(String name, Value value) {
-			this.name = name;
-			this.value = value;
-		}
-
-		@Override
-		public String toString() {
-			return "NamedValue [name=\""+name+"\", value="+value+"]";
-		}
-		
-	}
-	
-	public static abstract class Value {
-		
-		public enum Type { Array, Object, String, Bool, Integer, Float }
-		public final Type type;
-
-		public Value(Type type) {
-			this.type = type;
-		}
-
-		@Override
-		public String toString() {
-			return ""+type;
-		}
-	}
-	
-	public static class GenericValue<T> extends Value {
-		public T value;
-
-		public GenericValue(T value, Type type) {
-			super(type);
-			this.value = value;
-		}
-	}
-	
-	public static class ArrayValue   extends GenericValue<JSON_Array>  { public ArrayValue  (JSON_Array  value) { super(value, Type.Array  ); } @Override public String toString() { return super.toString()+"["+value.size()+"]"; } }
-	public static class ObjectValue  extends GenericValue<JSON_Object> { public ObjectValue (JSON_Object value) { super(value, Type.Object ); } @Override public String toString() { return super.toString()+"{"+value.size()+"}"; } }
-	public static class StringValue  extends GenericValue<String>      { public StringValue (String      value) { super(value, Type.String ); } @Override public String toString() { return super.toString()+"(\""+value+"\")"; } }
-	public static class BoolValue    extends GenericValue<Boolean>     { public BoolValue   (boolean     value) { super(value, Type.Bool   ); } @Override public String toString() { return super.toString()+"("  +value+  ")"; } }
-	public static class IntegerValue extends GenericValue<Long>        { public IntegerValue(long        value) { super(value, Type.Integer); } @Override public String toString() { return super.toString()+"("  +value+  ")"; } }
-	public static class FloatValue   extends GenericValue<Double>      { public FloatValue  (double      value) { super(value, Type.Float  ); } @Override public String toString() { return super.toString()+"("  +value+  ")"; } }
 }
