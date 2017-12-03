@@ -32,10 +32,13 @@ public class JSON_Data {
 	}
 
 	private static Value getChild(ObjectValue objectValue, String label) throws PathIsNotSolvableException {
-		for (NamedValue namedvalue : objectValue.value)
-			if (namedvalue.name.equals(label))
-				return namedvalue.value;
-		throw new PathIsNotSolvableException("This value has no child with name \""+label+"\".");
+		Value value = objectValue.value.getValue(label);
+//		for (NamedValue namedvalue : objectValue.value)
+//			if (namedvalue.name.equals(label))
+//				return namedvalue.value;
+		if (value==null) 
+			throw new PathIsNotSolvableException("This value has no child with name \""+label+"\".");
+		return value;
 	}
 	
 //	public Value getSubNode(Object... path) throws PathIsNotSolvableException {
@@ -57,6 +60,13 @@ public class JSON_Data {
 	
 	public static class JSON_Object extends Vector<NamedValue> {
 		private static final long serialVersionUID = -8191469330084921029L;
+
+		public Value getValue(String name) {
+			for (NamedValue namedvalue : this)
+				if (namedvalue.name.equals(name))
+					return namedvalue.value;
+			return null;
+		}
 	}
 	
 	public static class JSON_Array extends Vector<Value> {
