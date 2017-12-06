@@ -288,12 +288,17 @@ public class JSON_Parser {
 			throw new ParseException("Unexpected character to enclose strings.",parseInput.getCharPos());
 		
 		char endChar = '"';
+		char escapeChar = '\\';
+		boolean nextCharIsEscaped = false;
 		StringBuilder sb = new StringBuilder();
 		try {
 			while (parseInput.readChar()) {
-				if (parseInput.getChar()!=endChar)
+				if (parseInput.getChar()==escapeChar)
+					nextCharIsEscaped = true;
+				else if (parseInput.getChar()!=endChar || nextCharIsEscaped) {
 					sb.append(parseInput.getChar());
-				else {
+					nextCharIsEscaped = false;
+				} else {
 					parseInput.setCharConsumed();
 					break;
 				}
