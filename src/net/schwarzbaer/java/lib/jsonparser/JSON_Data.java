@@ -124,6 +124,13 @@ public class JSON_Data {
 		public String toString() {
 			return ""+type;
 		}
+		
+		public static JSON_Array  getArray  (Value val) { if (val!=null && (val instanceof ArrayValue  ) && val.type==Type.Array  ) return ((ArrayValue  )val).value; return null; }
+		public static JSON_Object getObject (Value val) { if (val!=null && (val instanceof ObjectValue ) && val.type==Type.Object ) return ((ObjectValue )val).value; return null; }
+		public static String      getString (Value val) { if (val!=null && (val instanceof StringValue ) && val.type==Type.String ) return ((StringValue )val).value; return null; }
+		public static Boolean     getBool   (Value val) { if (val!=null && (val instanceof BoolValue   ) && val.type==Type.Bool   ) return ((BoolValue   )val).value; return null; }
+		public static Long        getInteger(Value val) { if (val!=null && (val instanceof IntegerValue) && val.type==Type.Integer) return ((IntegerValue)val).value; return null; }
+		public static Double      getFloat  (Value val) { if (val!=null && (val instanceof FloatValue  ) && val.type==Type.Float  ) return ((FloatValue  )val).value; return null; }
 	}
 	
 	public static class GenericValue<T> extends Value {
