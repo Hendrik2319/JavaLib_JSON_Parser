@@ -2,6 +2,7 @@ package net.schwarzbaer.java.lib.jsonparser;
 
 import java.util.Arrays;
 import java.util.Vector;
+import java.util.function.Function;
 
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.Value.Type;
 
@@ -16,8 +17,8 @@ public class JSON_Data {
 		Value baseValue = new ObjectValue(json_object);
 		
 		for (int i=0; i<path.length; ++i) {
-			if      (baseValue.type==Type.Array && path[i] instanceof Integer) baseValue = getChild((ArrayValue)baseValue,(Integer)path[i]);
-			else if (baseValue.type==Type.Object && path[i] instanceof String) baseValue = getChild((ObjectValue)baseValue,(String)path[i]);
+			if      (baseValue.type==Type.Array  && path[i] instanceof Integer) { baseValue.wasProcessed=true; baseValue = getChild((ArrayValue)baseValue,(Integer)path[i]); }
+			else if (baseValue.type==Type.Object && path[i] instanceof String ) { baseValue.wasProcessed=true; baseValue = getChild((ObjectValue)baseValue,(String)path[i]); }
 			else
 				throw new PathIsNotSolvableException("Path is not solvable: "+Arrays.toString(path));
 		}
@@ -115,22 +116,24 @@ public class JSON_Data {
 		
 		public enum Type { Array, Object, String, Bool, Integer, Float }
 		public final Type type;
+		public boolean wasProcessed;
+		protected Boolean hasUnprocessedChildren;
 
 		public Value(Type type) {
 			this.type = type;
+			wasProcessed = false;
+			hasUnprocessedChildren = null;
+		}
+
+		public boolean hasUnprocessedChildren() {
+			hasUnprocessedChildren = false;
+			return false;
 		}
 
 		@Override
 		public String toString() {
 			return ""+type;
 		}
-		
-		public static JSON_Array  getArray  (Value val) { if (val!=null && (val instanceof ArrayValue  ) && val.type==Type.Array  ) return ((ArrayValue  )val).value; return null; }
-		public static JSON_Object getObject (Value val) { if (val!=null && (val instanceof ObjectValue ) && val.type==Type.Object ) return ((ObjectValue )val).value; return null; }
-		public static String      getString (Value val) { if (val!=null && (val instanceof StringValue ) && val.type==Type.String ) return ((StringValue )val).value; return null; }
-		public static Boolean     getBool   (Value val) { if (val!=null && (val instanceof BoolValue   ) && val.type==Type.Bool   ) return ((BoolValue   )val).value; return null; }
-		public static Long        getInteger(Value val) { if (val!=null && (val instanceof IntegerValue) && val.type==Type.Integer) return ((IntegerValue)val).value; return null; }
-		public static Double      getFloat  (Value val) { if (val!=null && (val instanceof FloatValue  ) && val.type==Type.Float  ) return ((FloatValue  )val).value; return null; }
 	}
 	
 	public static class GenericValue<T> extends Value {
@@ -142,10 +145,31 @@ public class JSON_Data {
 		}
 	}
 	
-	public static class ArrayValue   extends GenericValue<JSON_Array>  { public ArrayValue  (JSON_Array  value) { super(value, Type.Array  ); } @Override public String toString() { return super.toString()+"["+value.size()+"]"; } }
-	public static class ObjectValue  extends GenericValue<JSON_Object> { public ObjectValue (JSON_Object value) { super(value, Type.Object ); } @Override public String toString() { return super.toString()+"{"+value.size()+"}"; } }
+	public static class ArrayValue   extends GenericValue<JSON_Array>  { public ArrayValue  (JSON_Array  value) { super(value, Type.Array  ); } @Override public String toString() { return super.toString()+"["+value.size()+"]"; } @Override public boolean hasUnprocessedChildren() { return hUC(this); } }
+	public static class ObjectValue  extends GenericValue<JSON_Object> { public ObjectValue (JSON_Object value) { super(value, Type.Object ); } @Override public String toString() { return super.toString()+"{"+value.size()+"}"; } @Override public boolean hasUnprocessedChildren() { return hUC(this); } }
 	public static class StringValue  extends GenericValue<String>      { public StringValue (String      value) { super(value, Type.String ); } @Override public String toString() { return super.toString()+"(\""+value+"\")"; } }
 	public static class BoolValue    extends GenericValue<Boolean>     { public BoolValue   (boolean     value) { super(value, Type.Bool   ); } @Override public String toString() { return super.toString()+"("  +value+  ")"; } }
 	public static class IntegerValue extends GenericValue<Long>        { public IntegerValue(long        value) { super(value, Type.Integer); } @Override public String toString() { return super.toString()+"("  +value+  ")"; } }
 	public static class FloatValue   extends GenericValue<Double>      { public FloatValue  (double      value) { super(value, Type.Float  ); } @Override public String toString() { return super.toString()+"("  +value+  ")"; } }
+
+	private static boolean hUC(ArrayValue arrayValue) {
+		return hasUnprocessedChildren(arrayValue,arrayValue.value,v->v);
+	}
+
+	private static boolean hUC(ObjectValue objectValue) {
+		return hasUnprocessedChildren(objectValue,objectValue.value,nv->nv.value);
+	}
+
+	private static <T> boolean hasUnprocessedChildren(Value value, Vector<T> array, Function<T,Value> convert) {
+		if (value.hasUnprocessedChildren!=null) return value.hasUnprocessedChildren;
+		value.hasUnprocessedChildren=false;
+		for (T t:array) {
+			Value child = convert.apply(t);
+			if (!child.wasProcessed || child.hasUnprocessedChildren()) {
+				value.hasUnprocessedChildren=true;
+				break;
+			}
+		}
+		return value.hasUnprocessedChildren;
+	}
 }
