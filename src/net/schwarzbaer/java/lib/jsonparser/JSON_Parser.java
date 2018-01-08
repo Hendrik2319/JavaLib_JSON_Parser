@@ -261,10 +261,10 @@ public class JSON_Parser {
 		
 		double expFactor = 1;
 		if (expValue!=0) {
-			if (isExpNegative)
-				expFactor = -1;
 			for (int i=0; i<expValue; ++i)
 				expFactor *= 10;
+			if (isExpNegative)
+				expFactor = 1/expFactor;
 		}
 		
 		if (hasFraction) {
