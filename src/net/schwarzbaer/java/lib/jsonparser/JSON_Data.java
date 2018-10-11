@@ -2,6 +2,7 @@ package net.schwarzbaer.java.lib.jsonparser;
 
 import java.util.Arrays;
 import java.util.Vector;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.Value.Type;
@@ -99,10 +100,12 @@ public class JSON_Data {
 	public static class NamedValue {
 		public String name;
 		public Value value;
+		public boolean wasDeObfuscated;
 		
 		public NamedValue(String name, Value value) {
 			this.name = name;
 			this.value = value;
+			this.wasDeObfuscated = false;
 		}
 
 		@Override
@@ -111,6 +114,8 @@ public class JSON_Data {
 		}
 		
 	}
+//	boolean wasDeObfuscated = true;
+//	boolean hasObfuscatedChildren = true;
 	
 	public static abstract class Value {
 		
@@ -118,15 +123,22 @@ public class JSON_Data {
 		public final Type type;
 		public boolean wasProcessed;
 		protected Boolean hasUnprocessedChildren;
+		protected Boolean hasObfuscatedChildren;
 
 		public Value(Type type) {
 			this.type = type;
 			wasProcessed = false;
 			hasUnprocessedChildren = null;
+			hasObfuscatedChildren  = null;
 		}
 
-		public boolean hasUnprocessedChildren() {
+		public boolean hasUnprocessedChildren() { // default implementation 
 			hasUnprocessedChildren = false;
+			return false;
+		}
+
+		public boolean hasObfuscatedChildren() { // default implementation 
+			hasObfuscatedChildren = false;
 			return false;
 		}
 
@@ -145,31 +157,56 @@ public class JSON_Data {
 		}
 	}
 	
-	public static class ArrayValue   extends GenericValue<JSON_Array>  { public ArrayValue  (JSON_Array  value) { super(value, Type.Array  ); } @Override public String toString() { return super.toString()+"["+value.size()+"]"; } @Override public boolean hasUnprocessedChildren() { return hUC(this); } }
-	public static class ObjectValue  extends GenericValue<JSON_Object> { public ObjectValue (JSON_Object value) { super(value, Type.Object ); } @Override public String toString() { return super.toString()+"{"+value.size()+"}"; } @Override public boolean hasUnprocessedChildren() { return hUC(this); } }
+	public static class ArrayValue   extends GenericValue<JSON_Array>  { public ArrayValue  (JSON_Array  value) { super(value, Type.Array  ); } @Override public String toString() { return super.toString()+"["+value.size()+"]"; } @Override public boolean hasUnprocessedChildren() { return hUC(this); } @Override public boolean hasObfuscatedChildren() { return hOC(this); } }
+	public static class ObjectValue  extends GenericValue<JSON_Object> { public ObjectValue (JSON_Object value) { super(value, Type.Object ); } @Override public String toString() { return super.toString()+"{"+value.size()+"}"; } @Override public boolean hasUnprocessedChildren() { return hUC(this); } @Override public boolean hasObfuscatedChildren() { return hOC(this); } }
 	public static class StringValue  extends GenericValue<String>      { public StringValue (String      value) { super(value, Type.String ); } @Override public String toString() { return super.toString()+"(\""+value+"\")"; } }
 	public static class BoolValue    extends GenericValue<Boolean>     { public BoolValue   (boolean     value) { super(value, Type.Bool   ); } @Override public String toString() { return super.toString()+"("  +value+  ")"; } }
 	public static class IntegerValue extends GenericValue<Long>        { public IntegerValue(long        value) { super(value, Type.Integer); } @Override public String toString() { return super.toString()+"("  +value+  ")"; } }
 	public static class FloatValue   extends GenericValue<Double>      { public FloatValue  (double      value) { super(value, Type.Float  ); } @Override public String toString() { return super.toString()+"("  +value+  ")"; } }
 
-	private static boolean hUC(ArrayValue arrayValue) {
-		return hasUnprocessedChildren(arrayValue,arrayValue.value,v->v);
-	}
+	private static boolean hUC( ArrayValue  arrayValue) { return hasUnprocessedChildren( arrayValue, arrayValue.value, v->v); }
+	private static boolean hUC(ObjectValue objectValue) { return hasUnprocessedChildren(objectValue,objectValue.value,nv->nv.value); }
+	private static boolean hOC( ArrayValue  arrayValue) { return hasObfuscatedChildren ( arrayValue, arrayValue.value, v->v       , v->true              ); }
+	private static boolean hOC(ObjectValue objectValue) { return hasObfuscatedChildren (objectValue,objectValue.value,nv->nv.value,nv->nv.wasDeObfuscated); }
 
-	private static boolean hUC(ObjectValue objectValue) {
-		return hasUnprocessedChildren(objectValue,objectValue.value,nv->nv.value);
-	}
-
-	private static <T> boolean hasUnprocessedChildren(Value value, Vector<T> array, Function<T,Value> convert) {
+	private static <T> boolean hasUnprocessedChildren(Value value, Vector<T> array, Function<T,Value> getValue) {
 		if (value.hasUnprocessedChildren!=null) return value.hasUnprocessedChildren;
 		value.hasUnprocessedChildren=false;
 		for (T t:array) {
-			Value child = convert.apply(t);
+			Value child = getValue.apply(t);
 			if (!child.wasProcessed || child.hasUnprocessedChildren()) {
 				value.hasUnprocessedChildren=true;
 				break;
 			}
 		}
 		return value.hasUnprocessedChildren;
+	}
+
+	private static <T> boolean hasObfuscatedChildren(Value value, Vector<T> array, Function<T,Value> getValue, Function<T,Boolean> wasDeObfuscated) {
+		if (value.hasObfuscatedChildren!=null) return value.hasObfuscatedChildren;
+		value.hasObfuscatedChildren=false;
+		for (T t:array) {
+			Value child = getValue.apply(t);
+			if (!wasDeObfuscated.apply(t) || child.hasObfuscatedChildren()) {
+				value.hasObfuscatedChildren=true;
+				break;
+			}
+		}
+		return value.hasObfuscatedChildren;
+	}
+	
+	public static void traverseNamedValues(JSON_Object data, Consumer<NamedValue> consumer) {
+		for (NamedValue nv : data) {
+			consumer.accept(nv);
+			if (nv.value.type == Type.Object) traverseNamedValues(((ObjectValue)nv.value).value, consumer);
+			if (nv.value.type == Type.Array ) traverseNamedValues((( ArrayValue)nv.value).value, consumer);
+		}
+	}
+	
+	public static void traverseNamedValues(JSON_Array array, Consumer<NamedValue> consumer) {
+		for (Value v:array) {
+			if (v.type == Type.Object) traverseNamedValues(((ObjectValue)v).value, consumer);
+			if (v.type == Type.Array ) traverseNamedValues((( ArrayValue)v).value, consumer);
+		}
 	}
 }
