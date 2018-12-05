@@ -206,8 +206,9 @@ public class JSON_Data {
 	private static void traverseNamedValues(String path, JSON_Object data, BiConsumer<String,NamedValue> consumer) {
 		String newPath;
 		for (NamedValue nv : data) {
-			newPath = path.isEmpty()?"":(path+".") + nv.name;
-			consumer.accept(path,nv);
+			newPath = (path.isEmpty()?"":path+".") + nv.name;
+			consumer.accept(newPath,nv);
+			newPath = (path.isEmpty()?"":path+".") + nv.name;
 			if (nv.value.type == Type.Object) traverseNamedValues(newPath, ((ObjectValue)nv.value).value, consumer);
 			if (nv.value.type == Type.Array ) traverseNamedValues(newPath, (( ArrayValue)nv.value).value, consumer);
 		}
@@ -217,7 +218,7 @@ public class JSON_Data {
 		String newPath;
 		for (int i=0; i<array.size(); i++) {
 			Value v = array.get(i);
-			newPath = path.isEmpty()?"":path + "["+i+"]";
+			newPath = (path.isEmpty()?"":path) + "["+i+"]";
 			if (v.type == Type.Object) traverseNamedValues(newPath, ((ObjectValue)v).value, consumer);
 			if (v.type == Type.Array ) traverseNamedValues(newPath, (( ArrayValue)v).value, consumer);
 		}
