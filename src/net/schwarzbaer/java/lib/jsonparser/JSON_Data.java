@@ -2,7 +2,7 @@ package net.schwarzbaer.java.lib.jsonparser;
 
 import java.util.Arrays;
 import java.util.Vector;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.Value.Type;
@@ -195,18 +195,31 @@ public class JSON_Data {
 		return value.hasObfuscatedChildren;
 	}
 	
-	public static void traverseNamedValues(JSON_Object data, Consumer<NamedValue> consumer) {
+	public static void traverseNamedValues(JSON_Object data, BiConsumer<String,NamedValue> consumer) {
+		traverseNamedValues("", data, consumer);
+	}
+	
+	public static void traverseNamedValues(JSON_Array array, BiConsumer<String,NamedValue> consumer) {
+		traverseNamedValues("", array, consumer);
+	}
+	
+	private static void traverseNamedValues(String path, JSON_Object data, BiConsumer<String,NamedValue> consumer) {
+		String newPath;
 		for (NamedValue nv : data) {
-			consumer.accept(nv);
-			if (nv.value.type == Type.Object) traverseNamedValues(((ObjectValue)nv.value).value, consumer);
-			if (nv.value.type == Type.Array ) traverseNamedValues((( ArrayValue)nv.value).value, consumer);
+			newPath = path.isEmpty()?"":(path+".") + nv.name;
+			consumer.accept(path,nv);
+			if (nv.value.type == Type.Object) traverseNamedValues(newPath, ((ObjectValue)nv.value).value, consumer);
+			if (nv.value.type == Type.Array ) traverseNamedValues(newPath, (( ArrayValue)nv.value).value, consumer);
 		}
 	}
 	
-	public static void traverseNamedValues(JSON_Array array, Consumer<NamedValue> consumer) {
-		for (Value v:array) {
-			if (v.type == Type.Object) traverseNamedValues(((ObjectValue)v).value, consumer);
-			if (v.type == Type.Array ) traverseNamedValues((( ArrayValue)v).value, consumer);
+	private static void traverseNamedValues(String path, JSON_Array array, BiConsumer<String,NamedValue> consumer) {
+		String newPath;
+		for (int i=0; i<array.size(); i++) {
+			Value v = array.get(i);
+			newPath = path.isEmpty()?"":path + "["+i+"]";
+			if (v.type == Type.Object) traverseNamedValues(newPath, ((ObjectValue)v).value, consumer);
+			if (v.type == Type.Array ) traverseNamedValues(newPath, (( ArrayValue)v).value, consumer);
 		}
 	}
 }
