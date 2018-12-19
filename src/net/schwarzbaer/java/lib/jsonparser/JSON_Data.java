@@ -1,6 +1,7 @@
 package net.schwarzbaer.java.lib.jsonparser;
 
 import java.util.Arrays;
+import java.util.Locale;
 import java.util.Vector;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -95,6 +96,28 @@ public class JSON_Data {
 //			return super.add(value);
 //		}
 		
+		public String toString(Value.Type expectedType) {
+			return toString(expectedType,null);
+		}
+		
+		public String toString(Value.Type expectedType, String format) {
+			String str = "";
+			for (Value val:this) {
+				if (!str.isEmpty()) str+=", ";
+				if (val.type!=expectedType)
+					str+=val.toString();
+				else
+					switch (expectedType) {
+					case Array  : str+="[" +((ArrayValue  )val).value.size()+"]"; break;
+					case Object : str+="{" +((ObjectValue )val).value.size()+"}"; break;
+					case String : str+="\""+((StringValue )val).value+"\""; break;
+					case Bool   : str+=""  +((BoolValue   )val).value+  ""; break;
+					case Integer: str+=""  +((IntegerValue)val).value+  ""; break;
+					case Float  : Double d = ((FloatValue)val).value; str+= d==null?"null":String.format(Locale.ENGLISH,format,d); break;
+					}
+			}
+			return "[ "+str+" ]";
+		}
 	}
 
 	public static class NamedValue {
