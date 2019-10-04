@@ -15,6 +15,13 @@ public class JSON_Data {
 		public PathIsNotSolvableException(String message) { super(message); }
 	}
 
+	public static boolean hasSubNode(JSON_Object json_object, Object... path) {
+		try {
+			return getSubNode(json_object, path) != null;
+		} catch (PathIsNotSolvableException e) {
+			return false;
+		}
+	}
 	public static Value getSubNode(JSON_Object json_object, Object... path) throws PathIsNotSolvableException {
 		Value baseValue = new ObjectValue(json_object);
 		
