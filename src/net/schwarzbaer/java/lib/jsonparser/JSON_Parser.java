@@ -5,7 +5,10 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.Reader;
+import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.ArrayValue;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.BoolValue;
@@ -14,68 +17,118 @@ import net.schwarzbaer.java.lib.jsonparser.JSON_Data.IntegerValue;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.JSON_Array;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.JSON_Object;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.NamedValue;
+import net.schwarzbaer.java.lib.jsonparser.JSON_Data.Null;
+import net.schwarzbaer.java.lib.jsonparser.JSON_Data.NullValue;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.ObjectValue;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.StringValue;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.Value;
 
 public class JSON_Parser {
-	private File sourcefile;
-	private ParseInput parseInput;
+	private final File sourcefile;
+	private final ParseInput parseInput;
+	private final String json_text;
 
 	public JSON_Parser( File sourcefile ) {
+		this.json_text = null;
 		this.sourcefile = sourcefile;
 		this.parseInput = new ParseInput();
+		if (this.sourcefile==null)
+			throw new IllegalArgumentException();
 	}
 
-	public JSON_Object parse() {
+	public JSON_Parser(String json_text) {
+		this.json_text = json_text;
+		this.sourcefile = null;
+		this.parseInput = new ParseInput();
+		if (this.json_text==null)
+			throw new IllegalArgumentException();
+	}
+
+	public Result parse() {
+		try {
+			return parse_withParseException();
+		} catch (ParseException e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+	
+	public static class Result {
+
+		public final JSON_Array array;
+		public final JSON_Object object;
+
+		Result(JSON_Array array) {
+			this.object = null;
+			this.array = array;
+		}
+
+		Result(JSON_Object object) {
+			this.object = object;
+			this.array = null;
+		}
+	}
+
+	public Result parse_withParseException() throws ParseException {
 		//return createTestObject();
 		
-		JSON_Object json_Object = null;
-		
-		try ( BufferedReader input = new BufferedReader(new InputStreamReader(new FileInputStream(sourcefile), StandardCharsets.UTF_8) ) ) {
+		try (
+				Reader in = sourcefile==null ? new StringReader(json_text) : new InputStreamReader(new FileInputStream(sourcefile), StandardCharsets.UTF_8);
+				BufferedReader input = new BufferedReader(in );
+		) {
 			parseInput.setReader(input);
-			
 			parseInput.skipWhiteSpaces();
+			char ch = parseInput.getChar();
 			
-			if (parseInput.getChar()=='{') {
+			if (ch=='{') {
 				parseInput.setCharConsumed();
-				json_Object = read_Object();
+				return new Result(read_Object());
+			}
+			if (ch=='[') {
+				parseInput.setCharConsumed();
+				return new Result(read_Array());
 			}
 			
-		} catch (ParseException | IOException e) { e.printStackTrace(); }
+		} catch (IOException e) { e.printStackTrace(); }
 		
 		
-		return json_Object;
+		return null;
 	}
 
 	private Value read_Value() throws ParseException {
 		parseInput.skipWhiteSpaces();
 		
-		if (parseInput.getChar()=='-' || ('0'<=parseInput.getChar() && parseInput.getChar()<='9')) {
+		char ch = parseInput.getChar();
+		
+		if (ch=='-' || ('0'<=ch && ch<='9')) {
 			IntFloat number = read_Number();
 			if (number.isInt  ()) return new IntegerValue(number.getInt  ());
 			if (number.isFloat()) return new FloatValue  (number.getFloat());
-			throw new ParseException("Parsed number should be integer or float.",parseInput.getCharPos());
+			throw new ParseException(parseInput.getCharPos(),"Parsed number should be integer or float.");
 		}
-		if (parseInput.getChar()=='f' || parseInput.getChar()=='t') {
+		if (ch=='n') {
+			Null null_ = read_Null();
+			return new NullValue(null_);
+		}
+		if (ch=='f' || ch=='t') {
 			boolean bool = read_Bool();
 			return new BoolValue(bool);
 		}
-		if (parseInput.getChar()=='"') {
+		if (ch=='"') {
 			String str = read_String();
 			return new StringValue(str);
 		}
-		if (parseInput.getChar()=='[') {
+		if (ch=='[') {
 			parseInput.setCharConsumed();
 			JSON_Array array = read_Array();
 			return new ArrayValue(array);
 		}
-		if (parseInput.getChar()=='{') {
+		if (ch=='{') {
 			parseInput.setCharConsumed();
 			JSON_Object obj = read_Object();
 			return new ObjectValue(obj);
 		}
-		throw new ParseException("Unexpected character at beginning of value.",parseInput.getCharPos());
+		throw new ParseException(parseInput.getCharPos(),"Unexpected character ('%s',#%d) at beginning of value.", ch, (int)ch);
 	}
 
 	private NamedValue read_NamedValue() throws ParseException {
@@ -83,17 +136,19 @@ public class JSON_Parser {
 		
 		parseInput.skipWhiteSpaces();
 		
-		if (parseInput.getChar()=='"') {
+		char ch = parseInput.getChar();
+		if (ch=='"') {
 			name = read_String();
 		} else
-			throw new ParseException("Name string expected at beginning of object value.",parseInput.getCharPos());
+			throw new ParseException(parseInput.getCharPos(),"Name string expected at beginning of object value.");
 		
 		parseInput.skipWhiteSpaces();
-			
-		if (parseInput.getChar()==':') {
+		
+		ch = parseInput.getChar();
+		if (ch==':') {
 			parseInput.setCharConsumed();
 		} else
-			throw new ParseException("Character ':' expected after name string in object value.",parseInput.getCharPos());
+			throw new ParseException(parseInput.getCharPos(),"Character ':' expected after name string in object value. Got this: '%s',#%d", ch, (int)ch);
 		
 		Value value = read_Value();
 		return new NamedValue(name, value);
@@ -109,7 +164,8 @@ public class JSON_Parser {
 			
 			parseInput.skipWhiteSpaces();
 				
-			if (parseInput.getChar()=='}') {
+			char ch = parseInput.getChar();
+			if (ch=='}') {
 				parseInput.setCharConsumed();
 				return json_Object;
 			}
@@ -119,17 +175,18 @@ public class JSON_Parser {
 			
 			parseInput.skipWhiteSpaces();
 			
-			if (parseInput.getChar()==',') {
+			ch = parseInput.getChar();
+			if (ch==',') {
 				parseInput.setCharConsumed();
 				continue;
 			}
 			
-			if (parseInput.getChar()=='}') {
+			if (ch=='}') {
 				parseInput.setCharConsumed();
 				return json_Object;
 			}
 			
-			throw new ParseException("Unexpected character after object value.",parseInput.getCharPos());
+			throw new ParseException(parseInput.getCharPos(),"Unexpected character ('%s',#%d) after object value.", ch, (int)ch);
 		}
 	}
 
@@ -143,7 +200,8 @@ public class JSON_Parser {
 			
 			parseInput.skipWhiteSpaces();
 				
-			if (parseInput.getChar()==']') {
+			char ch = parseInput.getChar();
+			if (ch==']') {
 				parseInput.setCharConsumed();
 				return json_Array;
 			}
@@ -153,18 +211,31 @@ public class JSON_Parser {
 			
 			parseInput.skipWhiteSpaces();
 			
-			if (parseInput.getChar()==',') {
+			ch = parseInput.getChar();
+			if (ch==',') {
 				parseInput.setCharConsumed();
 				continue;
 			}
 			
-			if (parseInput.getChar()==']') {
+			if (ch==']') {
 				parseInput.setCharConsumed();
 				return json_Array;
 			}
 			
-			throw new ParseException("Unexpected character after array value.",parseInput.getCharPos());
+			throw new ParseException(parseInput.getCharPos(),"Unexpected character ('%s',#%d) after array value.", ch, (int)ch);
 		}
+	}
+
+	private Null read_Null() throws ParseException {
+		// pre: last char was NOT consumed
+		// post: last char is consumed
+		
+		if (parseInput.getChar()=='n') {
+			if (!parseInput.readKnownChars("ull")) 
+				throw new ParseException(parseInput.getCharPos(),"Unexpected keyword.");
+			return new Null();
+		}
+		throw new ParseException(parseInput.getCharPos(),"Unexpected keyword.");
 	}
 
 	private boolean read_Bool() throws ParseException {
@@ -173,15 +244,15 @@ public class JSON_Parser {
 		
 		if (parseInput.getChar()=='f') {
 			if (!parseInput.readKnownChars("alse")) 
-				throw new ParseException("Unexpected keyword.",parseInput.getCharPos());
+				throw new ParseException(parseInput.getCharPos(),"Unexpected keyword.");
 			return false;
 		}
 		if (parseInput.getChar()=='t') {
 			if (!parseInput.readKnownChars("rue")) 
-				throw new ParseException("Unexpected keyword.",parseInput.getCharPos());
+				throw new ParseException(parseInput.getCharPos(),"Unexpected keyword.");
 			return true;
 		}
-		throw new ParseException("Unexpected keyword.",parseInput.getCharPos());
+		throw new ParseException(parseInput.getCharPos(),"Unexpected keyword.");
 	}
 
 	private IntFloat read_Number() throws ParseException {
@@ -214,7 +285,7 @@ public class JSON_Parser {
 					break;
 			}
 		} catch (IOException e1) {
-			throw new ParseException("IOException while parsing a number.\r\nIOException: "+e1.getMessage(),parseInput.getCharPos());
+			throw new ParseException(parseInput.getCharPos(),"IOException while parsing a number.\r\nIOException: "+e1.getMessage());
 		}
 		
 		if (parseInput.getChar()=='.') {
@@ -232,7 +303,7 @@ public class JSON_Parser {
 						break;
 				}
 			} catch (IOException e1) {
-				throw new ParseException("IOException while parsing a number.\r\nIOException: "+e1.getMessage(),parseInput.getCharPos());
+				throw new ParseException(parseInput.getCharPos(),"IOException while parsing a number.\r\nIOException: "+e1.getMessage());
 			}
 		}
 		
@@ -255,7 +326,7 @@ public class JSON_Parser {
 						break;
 				}
 			} catch (IOException e1) {
-				throw new ParseException("IOException while parsing a number.\r\nIOException: "+e1.getMessage(),parseInput.getCharPos());
+				throw new ParseException(parseInput.getCharPos(),"IOException while parsing a number.\r\nIOException: "+e1.getMessage());
 			}
 		}
 		
@@ -284,8 +355,9 @@ public class JSON_Parser {
 		// pre: last char was NOT consumed
 		// post: last char is consumed
 		
-		if (parseInput.getChar()!='"')
-			throw new ParseException("Unexpected character to enclose strings.",parseInput.getCharPos());
+		char ch = parseInput.getChar();
+		if (ch!='"')
+			throw new ParseException(parseInput.getCharPos(),"Unexpected character ('%s',#%d) to enclose strings.", ch, (int)ch);
 		
 		char endChar = '"';
 		char escapeChar = '\\';
@@ -304,7 +376,7 @@ public class JSON_Parser {
 				}
 			}
 		} catch (IOException e1) {
-			throw new ParseException("IOException while parsing.\r\nIOException: "+e1.getMessage(),parseInput.getCharPos());
+			throw new ParseException(parseInput.getCharPos(),"IOException while parsing.\r\nIOException: "+e1.getMessage());
 		}
 		
 		return sb.toString();
@@ -366,8 +438,11 @@ public class JSON_Parser {
 	public static class ParseException extends Exception {
 		private static final long serialVersionUID = -7641164253081256862L;
 
-		public ParseException(String message, long pos) {
+		public ParseException(long pos, String message) {
 			super(String.format("Char[0x%08X]: %s", pos, message));
+		}
+		public ParseException(long pos, String format, Object...args) {
+			this(pos, String.format(Locale.ENGLISH, format, args));
 		}
 	
 	}

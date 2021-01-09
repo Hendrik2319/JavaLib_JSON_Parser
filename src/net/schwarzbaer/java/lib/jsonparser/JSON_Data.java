@@ -119,6 +119,7 @@ public class JSON_Data {
 					case Object : str+="{" +((ObjectValue )val).value.size()+"}"; break;
 					case String : str+="\""+((StringValue )val).value+"\""; break;
 					case Bool   : str+=""  +((BoolValue   )val).value+  ""; break;
+					case Null   : str+=""  +((NullValue   )val).value+  ""; break;
 					case Integer: str+=""  +((IntegerValue)val).value+  ""; break;
 					case Float  : Double d = ((FloatValue)val).value; str+= d==null?"null":String.format(Locale.ENGLISH,format,d); break;
 					}
@@ -149,7 +150,7 @@ public class JSON_Data {
 	
 	public static abstract class Value {
 		
-		public enum Type { Array, Object, String, Bool, Integer, Float }
+		public enum Type { Array, Object, String, Bool, Integer, Float, Null }
 		public final Type type;
 		public boolean wasProcessed;
 		protected Boolean hasUnprocessedChildren;
@@ -178,6 +179,10 @@ public class JSON_Data {
 		}
 	}
 	
+	public static class Null {
+		@Override public String toString() { return "<null>"; }
+	}
+	
 	public static class GenericValue<T> extends Value {
 		public T value;
 
@@ -187,12 +192,13 @@ public class JSON_Data {
 		}
 	}
 	
-	public static class ArrayValue   extends GenericValue<JSON_Array>  { public ArrayValue  (JSON_Array  value) { super(value, Type.Array  ); } @Override public String toString() { return super.toString()+"["+value.size()+"]"; } @Override public boolean hasUnprocessedChildren() { return hUC(this); } @Override public boolean hasObfuscatedChildren() { return hOC(this); } }
-	public static class ObjectValue  extends GenericValue<JSON_Object> { public ObjectValue (JSON_Object value) { super(value, Type.Object ); } @Override public String toString() { return super.toString()+"{"+value.size()+"}"; } @Override public boolean hasUnprocessedChildren() { return hUC(this); } @Override public boolean hasObfuscatedChildren() { return hOC(this); } }
-	public static class StringValue  extends GenericValue<String>      { public StringValue (String      value) { super(value, Type.String ); } @Override public String toString() { return super.toString()+"(\""+value+"\")"; } }
-	public static class BoolValue    extends GenericValue<Boolean>     { public BoolValue   (boolean     value) { super(value, Type.Bool   ); } @Override public String toString() { return super.toString()+"("  +value+  ")"; } }
+	public static class   ArrayValue extends GenericValue<JSON_Array>  { public   ArrayValue(JSON_Array  value) { super(value, Type.Array  ); } @Override public String toString() { return super.toString()+"["+value.size()+"]"; } @Override public boolean hasUnprocessedChildren() { return hUC(this); } @Override public boolean hasObfuscatedChildren() { return hOC(this); } }
+	public static class  ObjectValue extends GenericValue<JSON_Object> { public  ObjectValue(JSON_Object value) { super(value, Type.Object ); } @Override public String toString() { return super.toString()+"{"+value.size()+"}"; } @Override public boolean hasUnprocessedChildren() { return hUC(this); } @Override public boolean hasObfuscatedChildren() { return hOC(this); } }
+	public static class  StringValue extends GenericValue<String>      { public  StringValue(String      value) { super(value, Type.String ); } @Override public String toString() { return super.toString()+"(\""+value+"\")"; } }
+	public static class    BoolValue extends GenericValue<Boolean>     { public    BoolValue(boolean     value) { super(value, Type.Bool   ); } @Override public String toString() { return super.toString()+"("  +value+  ")"; } }
 	public static class IntegerValue extends GenericValue<Long>        { public IntegerValue(long        value) { super(value, Type.Integer); } @Override public String toString() { return super.toString()+"("  +value+  ")"; } }
-	public static class FloatValue   extends GenericValue<Double>      { public FloatValue  (double      value) { super(value, Type.Float  ); } @Override public String toString() { return super.toString()+"("  +value+  ")"; } }
+	public static class   FloatValue extends GenericValue<Double>      { public   FloatValue(double      value) { super(value, Type.Float  ); } @Override public String toString() { return super.toString()+"("  +value+  ")"; } }
+	public static class    NullValue extends GenericValue<Null>        { public    NullValue(Null        value) { super(value, Type.Null   ); } @Override public String toString() { return super.toString()+"("  +value+  ")"; } }
 
 	private static boolean hUC( ArrayValue  arrayValue) { return hasUnprocessedChildren( arrayValue, arrayValue.value, v->v); }
 	private static boolean hUC(ObjectValue objectValue) { return hasUnprocessedChildren(objectValue,objectValue.value,nv->nv.value); }
