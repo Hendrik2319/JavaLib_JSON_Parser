@@ -150,7 +150,12 @@ public class JSON_Data {
 	
 	public static abstract class Value {
 		
-		public enum Type { Array, Object, String, Bool, Integer, Float, Null }
+		public enum Type {
+			Array(false), Object(false), String(true), Bool(true), Integer(true), Float(true), Null(true);
+			public final boolean isSimple;
+			Type(boolean isSimple) { this.isSimple = isSimple; }
+		}
+		
 		public final Type type;
 		public boolean wasProcessed;
 		protected Boolean hasUnprocessedChildren;
