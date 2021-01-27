@@ -1,6 +1,7 @@
 package net.schwarzbaer.java.lib.jsonparser;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Locale;
 import java.util.Vector;
 import java.util.function.BiConsumer;
@@ -23,15 +24,18 @@ public class JSON_Data {
 		}
 	}
 	public static Value getSubNode(JSON_Object json_object, Object... path) throws PathIsNotSolvableException {
-		Value baseValue = new ObjectValue(json_object);
-		
+		return getSubNode(new ObjectValue(json_object), path);
+	}
+	public static Value getSubNode(JSON_Array json_array, Object... path) throws PathIsNotSolvableException {
+		return getSubNode(new ArrayValue(json_array), path);
+	}
+	public static Value getSubNode(Value baseValue, Object... path) throws PathIsNotSolvableException {
 		for (int i=0; i<path.length; ++i) {
 			if      (baseValue.type==Type.Array  && path[i] instanceof Integer) { baseValue.wasProcessed=true; baseValue = getChild((ArrayValue)baseValue,(Integer)path[i]); }
 			else if (baseValue.type==Type.Object && path[i] instanceof String ) { baseValue.wasProcessed=true; baseValue = getChild((ObjectValue)baseValue,(String)path[i]); }
 			else
 				throw new PathIsNotSolvableException("Path is not solvable: "+Arrays.toString(path));
 		}
-		
 		return baseValue;
 	}
 
@@ -71,6 +75,11 @@ public class JSON_Data {
 	public static class JSON_Object extends Vector<NamedValue> {
 		private static final long serialVersionUID = -8191469330084921029L;
 
+		public JSON_Object() {}
+		public JSON_Object(Collection<? extends NamedValue> values) {
+			super(values);
+		}
+		
 		public Value getValue(String name) {
 			for (NamedValue namedvalue : this)
 				if (namedvalue.name.equals(name))
@@ -81,6 +90,11 @@ public class JSON_Data {
 	
 	public static class JSON_Array extends Vector<Value> {
 		private static final long serialVersionUID = -8537671053731284735L;
+		
+		public JSON_Array() {}
+		public JSON_Array(Collection<? extends Value> values) {
+			super(values);
+		}
 
 //		private ValueType valueType;
 //		
