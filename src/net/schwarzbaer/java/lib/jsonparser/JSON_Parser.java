@@ -12,39 +12,61 @@ import java.util.Locale;
 
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.ArrayValue;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.BoolValue;
+import net.schwarzbaer.java.lib.jsonparser.JSON_Data.FactoryForExtras;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.FloatValue;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.IntegerValue;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.JSON_Array;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.JSON_Object;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.NamedValue;
+import net.schwarzbaer.java.lib.jsonparser.JSON_Data.NamedValueExtra;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.Null;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.NullValue;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.ObjectValue;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.StringValue;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.Value;
+import net.schwarzbaer.java.lib.jsonparser.JSON_Data.Value.Type;
+import net.schwarzbaer.java.lib.jsonparser.JSON_Data.ValueExtra;
 
-public class JSON_Parser {
+public class JSON_Parser<NVExtra extends NamedValueExtra, VExtra extends ValueExtra> {
 	private final File sourcefile;
 	private final ParseInput parseInput;
 	private final String json_text;
+	private final FactoryForExtras<NVExtra, VExtra> factoryForExtras;
 
-	public JSON_Parser( File sourcefile ) {
-		this.json_text = null;
+	public JSON_Parser( File sourcefile, FactoryForExtras<NVExtra, VExtra> factoryForExtras) {
+		this(sourcefile,null,factoryForExtras);
+		if (sourcefile==null) throw new IllegalArgumentException();
+	}
+
+	public JSON_Parser(String json_text, FactoryForExtras<NVExtra, VExtra> factoryForExtras) {
+		this(null,json_text,factoryForExtras);
+		if (json_text==null) throw new IllegalArgumentException();
+	}
+
+	private JSON_Parser(File sourcefile, String json_text, FactoryForExtras<NVExtra, VExtra> factoryForExtras) {
 		this.sourcefile = sourcefile;
-		this.parseInput = new ParseInput();
-		if (this.sourcefile==null)
-			throw new IllegalArgumentException();
-	}
-
-	public JSON_Parser(String json_text) {
 		this.json_text = json_text;
-		this.sourcefile = null;
+		this.factoryForExtras = factoryForExtras;
 		this.parseInput = new ParseInput();
-		if (this.json_text==null)
-			throw new IllegalArgumentException();
 	}
 
-	public Result parse() {
+	public static class Result<NVExtra extends NamedValueExtra, VExtra extends ValueExtra> {
+	
+		public final JSON_Array<NVExtra,VExtra> array;
+		public final JSON_Object<NVExtra,VExtra> object;
+	
+		Result(JSON_Array<NVExtra,VExtra> array) {
+			this.object = null;
+			this.array = array;
+		}
+	
+		Result(JSON_Object<NVExtra,VExtra> object) {
+			this.object = object;
+			this.array = null;
+		}
+	}
+
+	public Result<NVExtra,VExtra> parse() {
 		try {
 			return parse_withParseException();
 		} catch (ParseException e) {
@@ -53,23 +75,7 @@ public class JSON_Parser {
 		return null;
 	}
 	
-	public static class Result {
-
-		public final JSON_Array array;
-		public final JSON_Object object;
-
-		Result(JSON_Array array) {
-			this.object = null;
-			this.array = array;
-		}
-
-		Result(JSON_Object object) {
-			this.object = object;
-			this.array = null;
-		}
-	}
-
-	public Result parse_withParseException() throws ParseException {
+	public Result<NVExtra,VExtra> parse_withParseException() throws ParseException {
 		//return createTestObject();
 		
 		try (
@@ -82,11 +88,11 @@ public class JSON_Parser {
 			
 			if (ch=='{') {
 				parseInput.setCharConsumed();
-				return new Result(read_Object());
+				return new Result<>(read_Object());
 			}
 			if (ch=='[') {
 				parseInput.setCharConsumed();
-				return new Result(read_Array());
+				return new Result<>(read_Array());
 			}
 			
 		} catch (IOException e) { e.printStackTrace(); }
@@ -94,44 +100,54 @@ public class JSON_Parser {
 		
 		return null;
 	}
+	
+	private VExtra createValueExtra(Type type) {
+		if (factoryForExtras==null) return null;
+		return factoryForExtras.createValueExtra(type);
+	}
+	
+	private NVExtra createNamedValueExtra(Type type) {
+		if (factoryForExtras==null) return null;
+		return factoryForExtras.createNamedValueExtra(type);
+	}
 
-	private Value read_Value() throws ParseException {
+	private Value<NVExtra,VExtra> read_Value() throws ParseException {
 		parseInput.skipWhiteSpaces();
 		
 		char ch = parseInput.getChar();
 		
 		if (ch=='-' || ('0'<=ch && ch<='9')) {
 			IntFloat number = read_Number();
-			if (number.isInt  ()) return new IntegerValue(number.getInt  ());
-			if (number.isFloat()) return new FloatValue  (number.getFloat());
+			if (number.isInt  ()) return new IntegerValue<>(number.getInt  (), createValueExtra(Type.Integer));
+			if (number.isFloat()) return new FloatValue<>  (number.getFloat(), createValueExtra(Type.Float));
 			throw new ParseException(parseInput.getCharPos(),"Parsed number should be integer or float.");
 		}
 		if (ch=='n') {
 			Null null_ = read_Null();
-			return new NullValue(null_);
+			return new NullValue<>(null_, createValueExtra(Type.Null));
 		}
 		if (ch=='f' || ch=='t') {
 			boolean bool = read_Bool();
-			return new BoolValue(bool);
+			return new BoolValue<>(bool, createValueExtra(Type.Bool));
 		}
 		if (ch=='"') {
 			String str = read_String();
-			return new StringValue(str);
+			return new StringValue<>(str, createValueExtra(Type.String));
 		}
 		if (ch=='[') {
 			parseInput.setCharConsumed();
-			JSON_Array array = read_Array();
-			return new ArrayValue(array);
+			JSON_Array<NVExtra,VExtra> array = read_Array();
+			return new ArrayValue<>(array, createValueExtra(Type.Array));
 		}
 		if (ch=='{') {
 			parseInput.setCharConsumed();
-			JSON_Object obj = read_Object();
-			return new ObjectValue(obj);
+			JSON_Object<NVExtra,VExtra> obj = read_Object();
+			return new ObjectValue<>(obj, createValueExtra(Type.Object));
 		}
 		throw new ParseException(parseInput.getCharPos(),"Unexpected character ('%s',#%d) at beginning of value.", ch, (int)ch);
 	}
 
-	private NamedValue read_NamedValue() throws ParseException {
+	private NamedValue<NVExtra,VExtra> read_NamedValue() throws ParseException {
 		String name = null;
 		
 		parseInput.skipWhiteSpaces();
@@ -150,15 +166,15 @@ public class JSON_Parser {
 		} else
 			throw new ParseException(parseInput.getCharPos(),"Character ':' expected after name string in object value. Got this: '%s',#%d", ch, (int)ch);
 		
-		Value value = read_Value();
-		return new NamedValue(name, value);
+		Value<NVExtra,VExtra> value = read_Value();
+		return new NamedValue<NVExtra,VExtra>(name, value, createNamedValueExtra(value.type));
 	}
 
-	private JSON_Object read_Object() throws ParseException {
+	private JSON_Object<NVExtra,VExtra> read_Object() throws ParseException {
 		// pre: last char was consumed
 		// post: last char is consumed
 		
-		JSON_Object json_Object = new JSON_Object();
+		JSON_Object<NVExtra,VExtra> json_Object = new JSON_Object<>();
 		
 		while (true) {
 			
@@ -170,7 +186,7 @@ public class JSON_Parser {
 				return json_Object;
 			}
 				
-			NamedValue value = read_NamedValue();
+			NamedValue<NVExtra,VExtra> value = read_NamedValue();
 			json_Object.add(value);
 			
 			parseInput.skipWhiteSpaces();
@@ -190,11 +206,11 @@ public class JSON_Parser {
 		}
 	}
 
-	private JSON_Array read_Array() throws ParseException {
+	private JSON_Array<NVExtra,VExtra> read_Array() throws ParseException {
 		// pre: last char was consumed
 		// post: last char is consumed
 		
-		JSON_Array json_Array = new JSON_Array();
+		JSON_Array<NVExtra,VExtra> json_Array = new JSON_Array<>();
 		
 		while (true) {
 			
@@ -206,7 +222,7 @@ public class JSON_Parser {
 				return json_Array;
 			}
 				
-			Value value = read_Value();
+			Value<NVExtra,VExtra> value = read_Value();
 			json_Array.add(value);
 			
 			parseInput.skipWhiteSpaces();
@@ -383,17 +399,17 @@ public class JSON_Parser {
 	}
 
 	@SuppressWarnings("unused")
-	private JSON_Object createTestObject() {
-		JSON_Object json_Object = new JSON_Object();
-		json_Object.add(new NamedValue("string", new StringValue ("value")));
-		json_Object.add(new NamedValue("int"   , new IntegerValue(123)));
-		json_Object.add(new NamedValue("float" , new FloatValue  (123.456f)));
+	private JSON_Object<NVExtra,VExtra> createTestObject() {
+		JSON_Object<NVExtra,VExtra> json_Object = new JSON_Object<>();
+		json_Object.add(new NamedValue<>("string", new StringValue<> ("value",null),null));
+		json_Object.add(new NamedValue<>("int"   , new IntegerValue<>(123,null),null));
+		json_Object.add(new NamedValue<>("float" , new FloatValue<>  (123.456f,null),null));
 
-		JSON_Object json_Object2 = new JSON_Object();
-		json_Object2.add(new NamedValue("string", new StringValue ("value2")));
-		json_Object2.add(new NamedValue("int"   , new IntegerValue(1234)));
-		json_Object2.add(new NamedValue("float" , new FloatValue  (1234.56f)));
-		json_Object.add(new NamedValue("object",new ObjectValue(json_Object2)));
+		JSON_Object<NVExtra,VExtra> json_Object2 = new JSON_Object<>();
+		json_Object2.add(new NamedValue<>("string", new StringValue<> ("value2",null),null));
+		json_Object2.add(new NamedValue<>("int"   , new IntegerValue<>(1234,null),null));
+		json_Object2.add(new NamedValue<>("float" , new FloatValue<>  (1234.56f,null),null));
+		json_Object.add(new NamedValue<>("object",new ObjectValue<>(json_Object2,null),null));
 		return json_Object;
 	}
 

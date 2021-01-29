@@ -16,37 +16,41 @@ public class JSON_Data {
 		public PathIsNotSolvableException(String message) { super(message); }
 	}
 
-	public static boolean hasSubNode(JSON_Object json_object, Object... path) {
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> boolean hasSubNode(JSON_Object<NVExtra,VExtra> json_object, Object... path) {
+		if (path==null || path.length==0) throw new IllegalArgumentException("hasSubNode(JSON_Object) without a path is not allowed");
 		try {
 			return getSubNode(json_object, path) != null;
 		} catch (PathIsNotSolvableException e) {
 			return false;
 		}
 	}
-	public static Value getSubNode(JSON_Object json_object, Object... path) throws PathIsNotSolvableException {
-		return getSubNode(new ObjectValue(json_object), path);
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Value<NVExtra,VExtra> getSubNode(JSON_Object<NVExtra,VExtra> json_object, Object... path) throws PathIsNotSolvableException {
+		if (path==null || path.length==0) throw new IllegalArgumentException("getSubNode(JSON_Object) without a path is not allowed");
+		return getSubNode(new ObjectValue<NVExtra,VExtra>(json_object,null), path);
 	}
-	public static Value getSubNode(JSON_Array json_array, Object... path) throws PathIsNotSolvableException {
-		return getSubNode(new ArrayValue(json_array), path);
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Value<NVExtra,VExtra> getSubNode(JSON_Array<NVExtra,VExtra> json_array, Object... path) throws PathIsNotSolvableException {
+		if (path==null || path.length==0) throw new IllegalArgumentException("getSubNode(JSON_Array) without a path is not allowed");
+		return getSubNode(new ArrayValue<NVExtra,VExtra>(json_array,null), path);
 	}
-	public static Value getSubNode(Value baseValue, Object... path) throws PathIsNotSolvableException {
+	
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Value<NVExtra,VExtra> getSubNode(Value<NVExtra,VExtra> baseValue, Object... path) throws PathIsNotSolvableException {
 		for (int i=0; i<path.length; ++i) {
-			if      (baseValue.type==Type.Array  && path[i] instanceof Integer) { baseValue.wasProcessed=true; baseValue = getChild((ArrayValue)baseValue,(Integer)path[i]); }
-			else if (baseValue.type==Type.Object && path[i] instanceof String ) { baseValue.wasProcessed=true; baseValue = getChild((ObjectValue)baseValue,(String)path[i]); }
+			if      (baseValue.type==Type.Array  && baseValue.castToArrayValue ()!=null && path[i] instanceof Integer) { baseValue.wasProcessed=true; baseValue = getChild(baseValue.castToArrayValue (),(Integer)path[i]); }
+			else if (baseValue.type==Type.Object && baseValue.castToObjectValue()!=null && path[i] instanceof String ) { baseValue.wasProcessed=true; baseValue = getChild(baseValue.castToObjectValue(),(String )path[i]); }
 			else
 				throw new PathIsNotSolvableException("Path is not solvable: "+Arrays.toString(path));
 		}
 		return baseValue;
 	}
 
-	private static Value getChild(ArrayValue arrayValue, int index) throws PathIsNotSolvableException {
+	private static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Value<NVExtra,VExtra> getChild(ArrayValue<NVExtra,VExtra> arrayValue, int index) throws PathIsNotSolvableException {
 		if (index<0 || index>=arrayValue.value.size())
 			throw new PathIsNotSolvableException("This value has no child at index "+index+".");
 		return arrayValue.value.get(index);
 	}
 
-	private static Value getChild(ObjectValue objectValue, String label) throws PathIsNotSolvableException {
-		Value value = objectValue.value.getValue(label);
+	private static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Value<NVExtra,VExtra> getChild(ObjectValue<NVExtra,VExtra> objectValue, String label) throws PathIsNotSolvableException {
+		Value<NVExtra,VExtra> value = objectValue.value.getValue(label);
 //		for (NamedValue namedvalue : objectValue.value)
 //			if (namedvalue.name.equals(label))
 //				return namedvalue.value;
@@ -72,27 +76,109 @@ public class JSON_Data {
 //		throw new PathIsNotSolvableException("Path is not solvable: "+Arrays.toString(path));
 //	}
 	
-	public static class JSON_Object extends Vector<NamedValue> {
-		private static final long serialVersionUID = -8191469330084921029L;
+	public interface FactoryForExtras<NVExtra extends NamedValueExtra, VExtra extends ValueExtra> {
+		NVExtra createNamedValueExtra(Type type);
+		VExtra createValueExtra(Type type);
+	}
+	public interface NamedValueExtra {
+		public static class Dummy implements NamedValueExtra {
+		}
+	}
+	public interface ValueExtra {
+		public static class Dummy implements ValueExtra {
+		}
+	}
 
+
+	public static class NamedValue<NVExtra extends NamedValueExtra, VExtra extends ValueExtra> {
+		public String name;
+		public final Value<NVExtra,VExtra> value;
+		public final NVExtra extra;
+		public boolean wasDeObfuscated;
+		
+		public NamedValue(String name, Value<NVExtra,VExtra> value, NVExtra extra) {
+			this.name = name;
+			this.value = value;
+			this.extra = extra;
+			this.wasDeObfuscated = false;
+		}
+
+		@Override
+		public String toString() {
+			return "NamedValue [name=\""+name+"\", value="+value+"]";
+		}
+		
+	}
+//	boolean wasDeObfuscated = true;
+//	boolean hasObfuscatedChildren = true;
+	
+	public static abstract class Value<NVExtra extends NamedValueExtra, VExtra extends ValueExtra> {
+		
+		public enum Type {
+			Array(false), Object(false), String(true), Bool(true), Integer(true), Float(true), Null(true);
+			public final boolean isSimple;
+			Type(boolean isSimple) { this.isSimple = isSimple; }
+		}
+		
+		public final Type type;
+		public final VExtra extra;
+		public boolean wasProcessed;
+		protected Boolean hasUnprocessedChildren;
+		protected Boolean hasObfuscatedChildren;
+
+		public Value(Type type, VExtra extra) {
+			this.type = type;
+			this.extra = extra;
+			wasProcessed = false;
+			hasUnprocessedChildren = null;
+			hasObfuscatedChildren  = null;
+		}
+
+		public boolean hasUnprocessedChildren() { // default implementation 
+			hasUnprocessedChildren = false;
+			return false;
+		}
+
+		public boolean hasObfuscatedChildren() { // default implementation 
+			hasObfuscatedChildren = false;
+			return false;
+		}
+
+		@Override
+		public String toString() {
+			return ""+type;
+		}
+		
+		public  ObjectValue<NVExtra,VExtra> castToObjectValue () { return null; }
+		public   ArrayValue<NVExtra,VExtra> castToArrayValue  () { return null; }
+		public  StringValue<NVExtra,VExtra> castToStringValue () { return null; }
+		public    BoolValue<NVExtra,VExtra> castToBoolValue   () { return null; }
+		public IntegerValue<NVExtra,VExtra> castToIntegerValue() { return null; }
+		public   FloatValue<NVExtra,VExtra> castToFloatValue  () { return null; }
+		public    NullValue<NVExtra,VExtra> castToNullValue   () { return null; }
+	}
+	
+	public static class JSON_Object<NVExtra extends NamedValueExtra, VExtra extends ValueExtra> extends Vector<NamedValue<NVExtra,VExtra>> {
+		private static final long serialVersionUID = -8191469330084921029L;
+	
 		public JSON_Object() {}
-		public JSON_Object(Collection<? extends NamedValue> values) {
+		public JSON_Object(Collection<? extends NamedValue<NVExtra,VExtra>> values) {
 			super(values);
 		}
 		
-		public Value getValue(String name) {
-			for (NamedValue namedvalue : this)
+		public Value<NVExtra,VExtra> getValue(String name) {
+			for (NamedValue<NVExtra,VExtra> namedvalue : this)
 				if (namedvalue.name.equals(name))
 					return namedvalue.value;
 			return null;
 		}
 	}
-	
-	public static class JSON_Array extends Vector<Value> {
+
+	public static class JSON_Array<NVExtra extends NamedValueExtra, VExtra extends ValueExtra> extends Vector<Value<NVExtra,VExtra>> {
 		private static final long serialVersionUID = -8537671053731284735L;
 		
 		public JSON_Array() {}
-		public JSON_Array(Collection<? extends Value> values) {
+		public JSON_Array(Collection<? extends Value<NVExtra,VExtra>> values) {
 			super(values);
 		}
 
@@ -123,127 +209,82 @@ public class JSON_Data {
 		
 		public String toString(Value.Type expectedType, String format) {
 			String str = "";
-			for (Value val:this) {
+			for (Value<NVExtra,VExtra> val:this) {
 				if (!str.isEmpty()) str+=", ";
-				if (val.type!=expectedType)
-					str+=val.toString();
-				else
-					switch (expectedType) {
-					case Array  : str+="[" +((ArrayValue  )val).value.size()+"]"; break;
-					case Object : str+="{" +((ObjectValue )val).value.size()+"}"; break;
-					case String : str+="\""+((StringValue )val).value+"\""; break;
-					case Bool   : str+=""  +((BoolValue   )val).value+  ""; break;
-					case Null   : str+=""  +((NullValue   )val).value+  ""; break;
-					case Integer: str+=""  +((IntegerValue)val).value+  ""; break;
-					case Float  : Double d = ((FloatValue)val).value; str+= d==null?"null":String.format(Locale.ENGLISH,format,d); break;
+				if (val.type == expectedType)
+					switch (val.type) {
+					case Array  : str+="[" + val.castToArrayValue  ().value.size()+"]"; break;
+					case Object : str+="{" + val.castToObjectValue ().value.size()+"}"; break;
+					case String : str+="\""+ val.castToStringValue ().value+"\""; break;
+					case Bool   : str+=""  + val.castToBoolValue   ().value+  ""; break;
+					case Null   : str+=""  + val.castToNullValue   ().value+  ""; break;
+					case Integer: str+=""  + val.castToIntegerValue().value+  ""; break;
+					case Float  : Double d = val.castToFloatValue  ().value; str+= d==null?"null":String.format(Locale.ENGLISH,format,d); break;
 					}
+				else
+					str+=val.toString();
 			}
 			return "[ "+str+" ]";
 		}
 	}
 
-	public static class NamedValue {
-		public String name;
-		public Value value;
-		public boolean wasDeObfuscated;
-		
-		public NamedValue(String name, Value value) {
-			this.name = name;
-			this.value = value;
-			this.wasDeObfuscated = false;
-		}
-
-		@Override
-		public String toString() {
-			return "NamedValue [name=\""+name+"\", value="+value+"]";
-		}
-		
-	}
-//	boolean wasDeObfuscated = true;
-//	boolean hasObfuscatedChildren = true;
-	
-	public static abstract class Value {
-		
-		public enum Type {
-			Array(false), Object(false), String(true), Bool(true), Integer(true), Float(true), Null(true);
-			public final boolean isSimple;
-			Type(boolean isSimple) { this.isSimple = isSimple; }
-		}
-		
-		public final Type type;
-		public boolean wasProcessed;
-		protected Boolean hasUnprocessedChildren;
-		protected Boolean hasObfuscatedChildren;
-
-		public Value(Type type) {
-			this.type = type;
-			wasProcessed = false;
-			hasUnprocessedChildren = null;
-			hasObfuscatedChildren  = null;
-		}
-
-		public boolean hasUnprocessedChildren() { // default implementation 
-			hasUnprocessedChildren = false;
-			return false;
-		}
-
-		public boolean hasObfuscatedChildren() { // default implementation 
-			hasObfuscatedChildren = false;
-			return false;
-		}
-
-		@Override
-		public String toString() {
-			return ""+type;
-		}
-	}
-	
 	public static class Null {
 		@Override public String toString() { return "<null>"; }
 	}
 	
-	public static class GenericValue<T> extends Value {
+	public static class GenericValue<NVExtra extends NamedValueExtra, VExtra extends ValueExtra, T> extends Value<NVExtra,VExtra> {
 		public T value;
 
-		public GenericValue(T value, Type type) {
-			super(type);
+		public GenericValue(T value, Type type, VExtra extra) {
+			super(type,extra);
 			this.value = value;
 		}
 	}
 	
-	public static <T> T getValue(Value value, Type type, Function<Value,GenericValue<T>> cast) {
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra, T> T getValue(Value<NVExtra,VExtra> value, Type type, Function<Value<NVExtra,VExtra>,GenericValue<NVExtra,VExtra,T>> cast) {
 		if (value==null) return null;
 		if (value.type!=type) return null;
-		GenericValue<T> val = cast.apply(value);
+		GenericValue<NVExtra,VExtra,T> val = cast.apply(value);
 		if (val!=null) return val.value;
 		return null;
 	}
-	public static JSON_Array    getArrayValue(Value value) { return getValue(value, Type.Array  , val->value instanceof   ArrayValue ? (  ArrayValue) value : null); }
-	public static JSON_Object  getObjectValue(Value value) { return getValue(value, Type.Object , val->value instanceof  ObjectValue ? ( ObjectValue) value : null); }
-	public static String       getStringValue(Value value) { return getValue(value, Type.String , val->value instanceof  StringValue ? ( StringValue) value : null); }
-	public static Boolean        getBoolValue(Value value) { return getValue(value, Type.Bool   , val->value instanceof    BoolValue ? (   BoolValue) value : null); }
-	public static Long        getIntegerValue(Value value) { return getValue(value, Type.Integer, val->value instanceof IntegerValue ? (IntegerValue) value : null); }
-	public static Double        getFloatValue(Value value) { return getValue(value, Type.Float  , val->value instanceof   FloatValue ? (  FloatValue) value : null); }
-	public static Null           getNullValue(Value value) { return getValue(value, Type.Null   , val->value instanceof    NullValue ? (   NullValue) value : null); }
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> JSON_Object<NVExtra,VExtra> getObjectValue(Value<NVExtra,VExtra> value) { return getValue(value, Type.Object , Value::castToObjectValue ); }
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> JSON_Array <NVExtra,VExtra>  getArrayValue(Value<NVExtra,VExtra> value) { return getValue(value, Type.Array  , Value::castToArrayValue  ); }
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> String                      getStringValue(Value<NVExtra,VExtra> value) { return getValue(value, Type.String , Value::castToStringValue ); }
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Boolean                       getBoolValue(Value<NVExtra,VExtra> value) { return getValue(value, Type.Bool   , Value::castToBoolValue   ); }
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Long                       getIntegerValue(Value<NVExtra,VExtra> value) { return getValue(value, Type.Integer, Value::castToIntegerValue); }
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Double                       getFloatValue(Value<NVExtra,VExtra> value) { return getValue(value, Type.Float  , Value::castToFloatValue  ); }
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Null                          getNullValue(Value<NVExtra,VExtra> value) { return getValue(value, Type.Null   , Value::castToNullValue   ); }
 	
-	public static class   ArrayValue extends GenericValue<JSON_Array>  { public   ArrayValue(JSON_Array  value) { super(value, Type.Array  ); } @Override public String toString() { return super.toString()+"["+value.size()+"]"; } @Override public boolean hasUnprocessedChildren() { return hUC(this); } @Override public boolean hasObfuscatedChildren() { return hOC(this); } }
-	public static class  ObjectValue extends GenericValue<JSON_Object> { public  ObjectValue(JSON_Object value) { super(value, Type.Object ); } @Override public String toString() { return super.toString()+"{"+value.size()+"}"; } @Override public boolean hasUnprocessedChildren() { return hUC(this); } @Override public boolean hasObfuscatedChildren() { return hOC(this); } }
-	public static class  StringValue extends GenericValue<String>      { public  StringValue(String      value) { super(value, Type.String ); } @Override public String toString() { return super.toString()+"(\""+value+"\")"; } }
-	public static class    BoolValue extends GenericValue<Boolean>     { public    BoolValue(boolean     value) { super(value, Type.Bool   ); } @Override public String toString() { return super.toString()+"("  +value+  ")"; } }
-	public static class IntegerValue extends GenericValue<Long>        { public IntegerValue(long        value) { super(value, Type.Integer); } @Override public String toString() { return super.toString()+"("  +value+  ")"; } }
-	public static class   FloatValue extends GenericValue<Double>      { public   FloatValue(double      value) { super(value, Type.Float  ); } @Override public String toString() { return super.toString()+"("  +value+  ")"; } }
-	public static class    NullValue extends GenericValue<Null>        { public    NullValue(Null        value) { super(value, Type.Null   ); } @Override public String toString() { return super.toString()+"("  +value+  ")"; } }
+	public static class ObjectValue<NVExtra extends NamedValueExtra, VExtra extends ValueExtra> extends GenericValue<NVExtra,VExtra,JSON_Object<NVExtra,VExtra>> {
+		public ObjectValue(JSON_Object<NVExtra,VExtra> value, VExtra extra) {
+			super(value, Type.Object, extra);
+		}
+		@Override public String toString() { return super.toString()+"{"+value.size()+"}"; }
+		@Override public ObjectValue<NVExtra, VExtra> castToObjectValue() { return this; }
+		@Override public boolean hasUnprocessedChildren() { return JSON_Data.hasUnprocessedChildren(this,this.value,nv->nv.value); }
+		@Override public boolean hasObfuscatedChildren() { return JSON_Data.hasObfuscatedChildren (this,this.value,nv->nv.value,nv->nv.wasDeObfuscated); }
+	}
+	public static class ArrayValue<NVExtra extends NamedValueExtra, VExtra extends ValueExtra> extends GenericValue<NVExtra,VExtra,JSON_Array<NVExtra,VExtra>> {
+		public ArrayValue(JSON_Array<NVExtra,VExtra> value, VExtra extra) {
+			super(value, Type.Array, extra);
+		}
+		@Override public String toString() { return super.toString()+"["+value.size()+"]"; }
+		@Override public ArrayValue<NVExtra, VExtra> castToArrayValue() { return this; }
+		@Override public boolean hasUnprocessedChildren() { return JSON_Data.hasUnprocessedChildren( this, this.value, v-> v      ); }
+		@Override public boolean hasObfuscatedChildren() { return JSON_Data.hasObfuscatedChildren ( this, this.value, v-> v      , v->true              ); }
+	}
+	public static class  StringValue<NVExtra extends NamedValueExtra, VExtra extends ValueExtra> extends GenericValue<NVExtra,VExtra,String>  { public  StringValue(String  value, VExtra extra) { super(value, Type.String , extra); } @Override public String toString() { return super.toString()+"(\""+value+"\")"; } @Override public  StringValue<NVExtra,VExtra> castToStringValue () { return this; } }
+	public static class    BoolValue<NVExtra extends NamedValueExtra, VExtra extends ValueExtra> extends GenericValue<NVExtra,VExtra,Boolean> { public    BoolValue(boolean value, VExtra extra) { super(value, Type.Bool   , extra); } @Override public String toString() { return super.toString()+"("  +value+  ")"; } @Override public    BoolValue<NVExtra,VExtra> castToBoolValue   () { return this; } }
+	public static class IntegerValue<NVExtra extends NamedValueExtra, VExtra extends ValueExtra> extends GenericValue<NVExtra,VExtra,Long>    { public IntegerValue(long    value, VExtra extra) { super(value, Type.Integer, extra); } @Override public String toString() { return super.toString()+"("  +value+  ")"; } @Override public IntegerValue<NVExtra,VExtra> castToIntegerValue() { return this; } }
+	public static class   FloatValue<NVExtra extends NamedValueExtra, VExtra extends ValueExtra> extends GenericValue<NVExtra,VExtra,Double>  { public   FloatValue(double  value, VExtra extra) { super(value, Type.Float  , extra); } @Override public String toString() { return super.toString()+"("  +value+  ")"; } @Override public   FloatValue<NVExtra,VExtra> castToFloatValue  () { return this; } }
+	public static class    NullValue<NVExtra extends NamedValueExtra, VExtra extends ValueExtra> extends GenericValue<NVExtra,VExtra,Null>    { public    NullValue(Null    value, VExtra extra) { super(value, Type.Null   , extra); } @Override public String toString() { return super.toString()+"("  +value+  ")"; } @Override public    NullValue<NVExtra,VExtra> castToNullValue   () { return this; } }
 
-	private static boolean hUC( ArrayValue  arrayValue) { return hasUnprocessedChildren( arrayValue, arrayValue.value, v->v); }
-	private static boolean hUC(ObjectValue objectValue) { return hasUnprocessedChildren(objectValue,objectValue.value,nv->nv.value); }
-	private static boolean hOC( ArrayValue  arrayValue) { return hasObfuscatedChildren ( arrayValue, arrayValue.value, v->v       , v->true              ); }
-	private static boolean hOC(ObjectValue objectValue) { return hasObfuscatedChildren (objectValue,objectValue.value,nv->nv.value,nv->nv.wasDeObfuscated); }
-
-	private static <T> boolean hasUnprocessedChildren(Value value, Vector<T> array, Function<T,Value> getValue) {
+	private static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra,T> boolean hasUnprocessedChildren(Value<NVExtra,VExtra> value, Vector<T> array, Function<T,Value<NVExtra,VExtra>> getValue) {
 		if (value.hasUnprocessedChildren!=null) return value.hasUnprocessedChildren;
 		value.hasUnprocessedChildren=false;
 		for (T t:array) {
-			Value child = getValue.apply(t);
+			Value<NVExtra,VExtra> child = getValue.apply(t);
 			if (!child.wasProcessed || child.hasUnprocessedChildren()) {
 				value.hasUnprocessedChildren=true;
 				break;
@@ -252,11 +293,11 @@ public class JSON_Data {
 		return value.hasUnprocessedChildren;
 	}
 
-	private static <T> boolean hasObfuscatedChildren(Value value, Vector<T> array, Function<T,Value> getValue, Function<T,Boolean> wasDeObfuscated) {
+	private static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra,T> boolean hasObfuscatedChildren(Value<NVExtra,VExtra> value, Vector<T> array, Function<T,Value<NVExtra,VExtra>> getValue, Function<T,Boolean> wasDeObfuscated) {
 		if (value.hasObfuscatedChildren!=null) return value.hasObfuscatedChildren;
 		value.hasObfuscatedChildren=false;
 		for (T t:array) {
-			Value child = getValue.apply(t);
+			Value<NVExtra,VExtra> child = getValue.apply(t);
 			if (!wasDeObfuscated.apply(t) || child.hasObfuscatedChildren()) {
 				value.hasObfuscatedChildren=true;
 				break;
@@ -265,32 +306,32 @@ public class JSON_Data {
 		return value.hasObfuscatedChildren;
 	}
 	
-	public static void traverseNamedValues(JSON_Object data, BiConsumer<String,NamedValue> consumer) {
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> void traverseNamedValues(JSON_Object<NVExtra,VExtra> data, BiConsumer<String,NamedValue<NVExtra,VExtra>> consumer) {
 		traverseNamedValues("", data, consumer);
 	}
 	
-	public static void traverseNamedValues(JSON_Array array, BiConsumer<String,NamedValue> consumer) {
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> void traverseNamedValues(JSON_Array<NVExtra,VExtra> array, BiConsumer<String,NamedValue<NVExtra,VExtra>> consumer) {
 		traverseNamedValues("", array, consumer);
 	}
 	
-	private static void traverseNamedValues(String path, JSON_Object data, BiConsumer<String,NamedValue> consumer) {
+	private static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> void traverseNamedValues(String path, JSON_Object<NVExtra,VExtra> data, BiConsumer<String,NamedValue<NVExtra,VExtra>> consumer) {
 		String newPath;
-		for (NamedValue nv : data) {
+		for (NamedValue<NVExtra,VExtra> nv : data) {
 			newPath = (path.isEmpty()?"":path+".") + nv.name;
 			consumer.accept(newPath,nv);
 			newPath = (path.isEmpty()?"":path+".") + nv.name;
-			if (nv.value.type == Type.Object) traverseNamedValues(newPath, ((ObjectValue)nv.value).value, consumer);
-			if (nv.value.type == Type.Array ) traverseNamedValues(newPath, (( ArrayValue)nv.value).value, consumer);
+			if (nv.value.type == Type.Object) traverseNamedValues(newPath, nv.value.castToObjectValue().value, consumer);
+			if (nv.value.type == Type.Array ) traverseNamedValues(newPath, nv.value.castToArrayValue ().value, consumer);
 		}
 	}
 	
-	private static void traverseNamedValues(String path, JSON_Array array, BiConsumer<String,NamedValue> consumer) {
+	private static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> void traverseNamedValues(String path, JSON_Array<NVExtra,VExtra> array, BiConsumer<String,NamedValue<NVExtra,VExtra>> consumer) {
 		String newPath;
 		for (int i=0; i<array.size(); i++) {
-			Value v = array.get(i);
+			Value<NVExtra,VExtra> v = array.get(i);
 			newPath = (path.isEmpty()?"":path) + "["+i+"]";
-			if (v.type == Type.Object) traverseNamedValues(newPath, ((ObjectValue)v).value, consumer);
-			if (v.type == Type.Array ) traverseNamedValues(newPath, (( ArrayValue)v).value, consumer);
+			if (v.type == Type.Object) traverseNamedValues(newPath, v.castToObjectValue().value, consumer);
+			if (v.type == Type.Array ) traverseNamedValues(newPath, v.castToArrayValue ().value, consumer);
 		}
 	}
 }
