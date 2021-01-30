@@ -6,6 +6,8 @@ import java.util.Locale;
 import java.util.Vector;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.Value.Type;
 
@@ -35,27 +37,36 @@ public class JSON_Data {
 	
 	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Value<NVExtra,VExtra> getSubNode(Value<NVExtra,VExtra> baseValue, Object... path) throws PathIsNotSolvableException {
 		for (int i=0; i<path.length; ++i) {
-			if      (baseValue.type==Type.Array  && baseValue.castToArrayValue ()!=null && path[i] instanceof Integer) { ExtraCalls.markAsProcessed(baseValue); baseValue = getChild(baseValue.castToArrayValue (),(Integer)path[i]); }
-			else if (baseValue.type==Type.Object && baseValue.castToObjectValue()!=null && path[i] instanceof String ) { ExtraCalls.markAsProcessed(baseValue); baseValue = getChild(baseValue.castToObjectValue(),(String )path[i]); }
+			if      (baseValue.type==Type.Array  && baseValue.castToArrayValue ()!=null && path[i] instanceof Integer) { ExtraCalls.markAsProcessed(baseValue); baseValue = getChild(baseValue.castToArrayValue (),(Integer)path[i],()->toString(path)); }
+			else if (baseValue.type==Type.Object && baseValue.castToObjectValue()!=null && path[i] instanceof String ) { ExtraCalls.markAsProcessed(baseValue); baseValue = getChild(baseValue.castToObjectValue(),(String )path[i],()->toString(path)); }
 			else
-				throw new PathIsNotSolvableException("Path is not solvable: "+Arrays.toString(path));
+				throw new PathIsNotSolvableException("Path is not solvable: "+toString(path));
 		}
 		return baseValue;
 	}
+	private static String toString(Object... path) {
+		Stream<String> stream = Arrays.stream(path).map(obj->{
+			if (obj instanceof String) return "\""+obj.toString()+"\"";
+			if (obj instanceof Number) return obj.toString();
+			return "<"+obj+">";
+		});
+		Iterable<String> iterable = ()->stream.iterator();
+		return "[ "+String.join(", ", iterable)+" ]";
+	}
 
-	private static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Value<NVExtra,VExtra> getChild(ArrayValue<NVExtra,VExtra> arrayValue, int index) throws PathIsNotSolvableException {
+	private static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Value<NVExtra,VExtra> getChild(ArrayValue<NVExtra,VExtra> arrayValue, int index, Supplier<String> getPathStr) throws PathIsNotSolvableException {
 		if (index<0 || index>=arrayValue.value.size())
-			throw new PathIsNotSolvableException("This value has no child at index "+index+".");
+			throw new PathIsNotSolvableException("This ArrayValue has no child at index "+index+". [Path: "+getPathStr.get()+"]");
 		return arrayValue.value.get(index);
 	}
 
-	private static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Value<NVExtra,VExtra> getChild(ObjectValue<NVExtra,VExtra> objectValue, String label) throws PathIsNotSolvableException {
+	private static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Value<NVExtra,VExtra> getChild(ObjectValue<NVExtra,VExtra> objectValue, String label, Supplier<String> getPathStr) throws PathIsNotSolvableException {
 		Value<NVExtra,VExtra> value = objectValue.value.getValue(label);
 //		for (NamedValue namedvalue : objectValue.value)
 //			if (namedvalue.name.equals(label))
 //				return namedvalue.value;
 		if (value==null) 
-			throw new PathIsNotSolvableException("This value has no child with name \""+label+"\".");
+			throw new PathIsNotSolvableException("This ObjectValue has no child with name \""+label+"\". [Path: "+getPathStr.get()+"]");
 		return value;
 	}
 	
@@ -254,7 +265,10 @@ public class JSON_Data {
 		if (value==null) return null;
 		if (value.type!=type) return null;
 		GenericValue<NVExtra,VExtra,T> val = cast.apply(value);
-		if (val!=null) return val.value;
+		if (val!=null) {
+			if (val.extra!=null) val.extra.markAsProcessed();
+			return val.value;
+		}
 		return null;
 	}
 	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> JSON_Object<NVExtra,VExtra> getObjectValue(Value<NVExtra,VExtra> value) { return getValue(value, Type.Object , Value::castToObjectValue ); }
