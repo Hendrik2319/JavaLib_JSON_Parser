@@ -381,14 +381,14 @@ public class JSON_Parser<NVExtra extends NamedValueExtra, VExtra extends ValueEx
 		StringBuilder sb = new StringBuilder();
 		try {
 			while (parseInput.readChar()) {
-				if (parseInput.getChar()==escapeChar)
-					nextCharIsEscaped = true;
-				else if (parseInput.getChar()!=endChar || nextCharIsEscaped) {
-					sb.append(parseInput.getChar());
-					nextCharIsEscaped = false;
-				} else {
+				if (parseInput.getChar()==endChar && !nextCharIsEscaped) {
 					parseInput.setCharConsumed();
 					break;
+				} else if (parseInput.getChar()==escapeChar && !nextCharIsEscaped)
+					nextCharIsEscaped = true;
+				else {
+					sb.append(parseInput.getChar());
+					nextCharIsEscaped = false;
 				}
 			}
 		} catch (IOException e1) {
