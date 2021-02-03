@@ -387,7 +387,22 @@ public class JSON_Parser<NVExtra extends NamedValueExtra, VExtra extends ValueEx
 				} else if (parseInput.getChar()==escapeChar && !nextCharIsEscaped)
 					nextCharIsEscaped = true;
 				else {
-					sb.append(parseInput.getChar());
+					char ch1 = parseInput.getChar();
+					if (nextCharIsEscaped) {
+						switch (ch1) {
+						case 'b': ch1='\b'; break;
+						case 't': ch1='\t'; break;
+						case 'n': ch1='\n'; break;
+						case 'r': ch1='\r'; break;
+						case 'f': ch1='\f'; break;
+						case '\'': break;
+						case '\"': break;
+						default:
+							if (ch1!=escapeChar) // unknown escape sequence
+								sb.append(escapeChar); // repair escape sequence
+						}
+					}
+					sb.append(ch1);
 					nextCharIsEscaped = false;
 				}
 			}
