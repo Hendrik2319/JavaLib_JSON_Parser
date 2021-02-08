@@ -13,34 +13,39 @@ import net.schwarzbaer.java.lib.jsonparser.JSON_Data.Value.Type;
 
 public class JSON_Data {
 	
-	public static class PathIsNotSolvableException extends Exception {
+	public static class TraverseException extends Exception {
 		private static final long serialVersionUID = -2729201690665554532L;
-		public PathIsNotSolvableException(String message) { super(message); }
+		public TraverseException(String message) {
+			super(message);
+		}
+		public TraverseException(String format, Object...args) {
+			super(String.format(Locale.ENGLISH, format, args));
+		}
 	}
 
 	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> boolean hasSubNode(JSON_Object<NVExtra,VExtra> json_object, Object... path) {
 		if (path==null || path.length==0) throw new IllegalArgumentException("hasSubNode(JSON_Object) without a path is not allowed");
 		try {
 			return getSubNode(json_object, path) != null;
-		} catch (PathIsNotSolvableException e) {
+		} catch (TraverseException e) {
 			return false;
 		}
 	}
-	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Value<NVExtra,VExtra> getSubNode(JSON_Object<NVExtra,VExtra> json_object, Object... path) throws PathIsNotSolvableException {
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Value<NVExtra,VExtra> getSubNode(JSON_Object<NVExtra,VExtra> json_object, Object... path) throws TraverseException {
 		if (path==null || path.length==0) throw new IllegalArgumentException("getSubNode(JSON_Object) without a path is not allowed");
 		return getSubNode(new ObjectValue<NVExtra,VExtra>(json_object,null), path);
 	}
-	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Value<NVExtra,VExtra> getSubNode(JSON_Array<NVExtra,VExtra> json_array, Object... path) throws PathIsNotSolvableException {
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Value<NVExtra,VExtra> getSubNode(JSON_Array<NVExtra,VExtra> json_array, Object... path) throws TraverseException {
 		if (path==null || path.length==0) throw new IllegalArgumentException("getSubNode(JSON_Array) without a path is not allowed");
 		return getSubNode(new ArrayValue<NVExtra,VExtra>(json_array,null), path);
 	}
 	
-	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Value<NVExtra,VExtra> getSubNode(Value<NVExtra,VExtra> baseValue, Object... path) throws PathIsNotSolvableException {
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Value<NVExtra,VExtra> getSubNode(Value<NVExtra,VExtra> baseValue, Object... path) throws TraverseException {
 		for (int i=0; i<path.length; ++i) {
 			if      (baseValue.type==Type.Array  && baseValue.castToArrayValue ()!=null && path[i] instanceof Integer) { ExtraCalls.markAsProcessed(baseValue); baseValue = getChild(baseValue.castToArrayValue (),(Integer)path[i],()->toString(path)); }
 			else if (baseValue.type==Type.Object && baseValue.castToObjectValue()!=null && path[i] instanceof String ) { ExtraCalls.markAsProcessed(baseValue); baseValue = getChild(baseValue.castToObjectValue(),(String )path[i],()->toString(path)); }
 			else
-				throw new PathIsNotSolvableException("Path is not solvable: "+toString(path));
+				throw new TraverseException("Path is not solvable: %s", toString(path));
 		}
 		return baseValue;
 	}
@@ -54,19 +59,19 @@ public class JSON_Data {
 		return "[ "+String.join(", ", iterable)+" ]";
 	}
 
-	private static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Value<NVExtra,VExtra> getChild(ArrayValue<NVExtra,VExtra> arrayValue, int index, Supplier<String> getPathStr) throws PathIsNotSolvableException {
+	private static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Value<NVExtra,VExtra> getChild(ArrayValue<NVExtra,VExtra> arrayValue, int index, Supplier<String> getPathStr) throws TraverseException {
 		if (index<0 || index>=arrayValue.value.size())
-			throw new PathIsNotSolvableException("This ArrayValue has no child at index "+index+". [Path: "+getPathStr.get()+"]");
+			throw new TraverseException("This ArrayValue has no child at index %d. [Path: %s]", index, getPathStr.get());
 		return arrayValue.value.get(index);
 	}
 
-	private static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Value<NVExtra,VExtra> getChild(ObjectValue<NVExtra,VExtra> objectValue, String label, Supplier<String> getPathStr) throws PathIsNotSolvableException {
+	private static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Value<NVExtra,VExtra> getChild(ObjectValue<NVExtra,VExtra> objectValue, String label, Supplier<String> getPathStr) throws TraverseException {
 		Value<NVExtra,VExtra> value = objectValue.value.getValue(label);
 //		for (NamedValue namedvalue : objectValue.value)
 //			if (namedvalue.name.equals(label))
 //				return namedvalue.value;
 		if (value==null) 
-			throw new PathIsNotSolvableException("This ObjectValue has no child with name \""+label+"\". [Path: "+getPathStr.get()+"]");
+			throw new TraverseException("This ObjectValue has no child with name \"%s\". [Path: %s]", label, getPathStr.get());
 		return value;
 	}
 	
@@ -261,24 +266,6 @@ public class JSON_Data {
 		}
 	}
 	
-	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra, T> T getValue(Value<NVExtra,VExtra> value, Type type, Function<Value<NVExtra,VExtra>,GenericValue<NVExtra,VExtra,T>> cast) {
-		if (value==null) return null;
-		if (value.type!=type) return null;
-		GenericValue<NVExtra,VExtra,T> val = cast.apply(value);
-		if (val!=null) {
-			if (val.extra!=null) val.extra.markAsProcessed();
-			return val.value;
-		}
-		return null;
-	}
-	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> JSON_Object<NVExtra,VExtra> getObjectValue(Value<NVExtra,VExtra> value) { return getValue(value, Type.Object , Value::castToObjectValue ); }
-	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> JSON_Array <NVExtra,VExtra>  getArrayValue(Value<NVExtra,VExtra> value) { return getValue(value, Type.Array  , Value::castToArrayValue  ); }
-	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> String                      getStringValue(Value<NVExtra,VExtra> value) { return getValue(value, Type.String , Value::castToStringValue ); }
-	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Boolean                       getBoolValue(Value<NVExtra,VExtra> value) { return getValue(value, Type.Bool   , Value::castToBoolValue   ); }
-	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Long                       getIntegerValue(Value<NVExtra,VExtra> value) { return getValue(value, Type.Integer, Value::castToIntegerValue); }
-	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Double                       getFloatValue(Value<NVExtra,VExtra> value) { return getValue(value, Type.Float  , Value::castToFloatValue  ); }
-	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Null                          getNullValue(Value<NVExtra,VExtra> value) { return getValue(value, Type.Null   , Value::castToNullValue   ); }
-	
 	public static class ObjectValue<NVExtra extends NamedValueExtra, VExtra extends ValueExtra> extends GenericValue<NVExtra,VExtra,JSON_Object<NVExtra,VExtra>> {
 		public ObjectValue(JSON_Object<NVExtra,VExtra> value, VExtra extra) {
 			super(value, Type.Object, extra);
@@ -298,6 +285,158 @@ public class JSON_Data {
 	public static class IntegerValue<NVExtra extends NamedValueExtra, VExtra extends ValueExtra> extends GenericValue<NVExtra,VExtra,Long>    { public IntegerValue(long    value, VExtra extra) { super(value, Type.Integer, extra); } @Override public String toString() { return super.toString()+"("  +value+  ")"; } @Override public IntegerValue<NVExtra,VExtra> castToIntegerValue() { return this; } }
 	public static class   FloatValue<NVExtra extends NamedValueExtra, VExtra extends ValueExtra> extends GenericValue<NVExtra,VExtra,Double>  { public   FloatValue(double  value, VExtra extra) { super(value, Type.Float  , extra); } @Override public String toString() { return super.toString()+"("  +value+  ")"; } @Override public   FloatValue<NVExtra,VExtra> castToFloatValue  () { return this; } }
 	public static class    NullValue<NVExtra extends NamedValueExtra, VExtra extends ValueExtra> extends GenericValue<NVExtra,VExtra,Null>    { public    NullValue(Null    value, VExtra extra) { super(value, Type.Null   , extra); } @Override public String toString() { return super.toString()+"("  +value+  ")"; } @Override public    NullValue<NVExtra,VExtra> castToNullValue   () { return this; } }
+	
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> double getNumber(
+			JSON_Object<NVExtra,VExtra> object,
+			String subValueName,
+			String debugOutputPrefixStr
+	) throws TraverseException {
+		return JSON_Data.getNumber(object, subValueName, false, debugOutputPrefixStr);
+	}
+	
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Double getNumber(
+			JSON_Object<NVExtra,VExtra> object,
+			String subValueName,
+			boolean isOptionalValue,
+			String debugOutputPrefixStr
+	) throws TraverseException {
+		if (object==null) throw new TraverseException("%s==NULL", debugOutputPrefixStr);
+		Value<NVExtra,VExtra> value = object.getValue(subValueName);
+		if (value==null) {
+			if (isOptionalValue) return null;
+			throw new TraverseException("%s.%s don't exists", debugOutputPrefixStr, subValueName);
+		}
+		return JSON_Data.getNumber(value, debugOutputPrefixStr+"."+subValueName);
+	}
+	
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> double getNumber(
+			Value<NVExtra,VExtra> value,
+			String debugOutputPrefixStr
+	) throws TraverseException {
+		Long     intValue = getValue(value, JSON_Data.Value.Type.Integer, JSON_Data.Value::castToIntegerValue, true, debugOutputPrefixStr);
+		Double floatValue = getValue(value, JSON_Data.Value.Type.Float  , JSON_Data.Value::castToFloatValue  , true, debugOutputPrefixStr);
+		if (  intValue!=null) return   intValue.doubleValue();
+		if (floatValue!=null) return floatValue.doubleValue();
+		throw new TraverseException("%s isn't wether an IntegerValue nor a FloatValue", debugOutputPrefixStr);
+	}
+
+	private static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra, ResultType> ResultType getValue( // has specific methods
+			JSON_Object<NVExtra,VExtra> object,
+			String subValueName,
+			Value.Type type,
+			Function<Value<NVExtra,VExtra>,GenericValue<NVExtra,VExtra,ResultType>> cast,
+			String debugOutputPrefixStr
+	) throws TraverseException {
+		return getValue(object, subValueName, false, type, cast, false, debugOutputPrefixStr);
+	}
+
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra, ResultType> ResultType getValue(
+			JSON_Object<NVExtra,VExtra> object,
+			String subValueName,
+			boolean isOptionalValue,
+			Value.Type type,
+			Function<Value<NVExtra,VExtra>,GenericValue<NVExtra,VExtra,ResultType>> cast,
+			boolean isOptionalType,
+			String debugOutputPrefixStr
+	) throws TraverseException {
+		if (object==null) throw new TraverseException("%s==NULL", debugOutputPrefixStr);
+		Value<NVExtra,VExtra> value = object.getValue(subValueName);
+		if (value==null) {
+			if (isOptionalValue) return null;
+			throw new TraverseException("%s.%s don't exists", debugOutputPrefixStr, subValueName);
+		}
+		return getValue(value, type, cast, isOptionalType, debugOutputPrefixStr+"."+subValueName);
+	}
+	
+	private static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra, ResultType> ResultType getValue( // has specific methods
+			Value<NVExtra,VExtra> value,
+			Value.Type type,
+			Function<Value<NVExtra,VExtra>,GenericValue<NVExtra,VExtra,ResultType>> cast,
+			String debugOutputPrefixStr
+	) throws TraverseException {
+		return getValue(value, type, cast, false, debugOutputPrefixStr);
+	}
+
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra, ResultType> ResultType getValue(
+			Value<NVExtra,VExtra> value,
+			Value.Type type,
+			Function<Value<NVExtra,VExtra>,GenericValue<NVExtra,VExtra,ResultType>> cast,
+			boolean isOptionalType,
+			String debugOutputPrefixStr
+	) throws TraverseException {
+		if (type==null) throw new IllegalArgumentException("type must not be NULL");
+		if (cast==null) throw new IllegalArgumentException("cast must not be NULL");
+		
+		if (value==null)
+			throw new TraverseException("%s==NULL", debugOutputPrefixStr);
+		
+		if (value.type!=type && !isOptionalType)
+			throw new TraverseException("%s isn't a %sValue (type)", debugOutputPrefixStr, type);
+		
+		GenericValue<NVExtra,VExtra,ResultType> genVal = cast.apply(value);
+		if (genVal==null) {
+			if (isOptionalType) return null;
+			throw new TraverseException("%s isn't a %sValue (cast)", debugOutputPrefixStr, type);
+		}
+		
+		if (genVal.value==null)
+			throw new TraverseException("%s(%sValue).value==NULL", type, debugOutputPrefixStr);
+		
+		if (genVal.extra!=null)
+			genVal.extra.markAsProcessed();
+		
+		return genVal.value;
+	}
+	
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra, ResultType> ResultType getValue(
+			JSON_Object<NVExtra,VExtra> object,
+			String subValueName,
+			Value.Type type,
+			Function<Value<NVExtra,VExtra>,GenericValue<NVExtra,VExtra,ResultType>> cast
+	) {
+		if (object==null) return null;
+		return getValue(object.getValue(subValueName), type, cast);
+	}
+	
+	private static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra, ResultType> ResultType getValue( // has specific methods
+			Value<NVExtra,VExtra> value,
+			Type type,
+			Function<Value<NVExtra,VExtra>,GenericValue<NVExtra,VExtra,ResultType>> cast
+	) {
+		if (type==null) throw new IllegalArgumentException("type must not be NULL");
+		if (cast==null) throw new IllegalArgumentException("cast must not be NULL");
+		if (value==null) return null;
+		if (value.type!=type) return null;
+		GenericValue<NVExtra,VExtra,ResultType> val = cast.apply(value);
+		if (val!=null) {
+			if (val.extra!=null) val.extra.markAsProcessed();
+			return val.value;
+		}
+		return null;
+	}
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> JSON_Object<NVExtra,VExtra> getObjectValue(JSON_Object<NVExtra,VExtra> object, String subValueName, String debugOutputPrefixStr) throws TraverseException { return getValue(object, subValueName, Type.Object , Value::castToObjectValue , debugOutputPrefixStr); }
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> JSON_Array <NVExtra,VExtra>  getArrayValue(JSON_Object<NVExtra,VExtra> object, String subValueName, String debugOutputPrefixStr) throws TraverseException { return getValue(object, subValueName, Type.Array  , Value::castToArrayValue  , debugOutputPrefixStr); }
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> String                      getStringValue(JSON_Object<NVExtra,VExtra> object, String subValueName, String debugOutputPrefixStr) throws TraverseException { return getValue(object, subValueName, Type.String , Value::castToStringValue , debugOutputPrefixStr); }
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> boolean                       getBoolValue(JSON_Object<NVExtra,VExtra> object, String subValueName, String debugOutputPrefixStr) throws TraverseException { return getValue(object, subValueName, Type.Bool   , Value::castToBoolValue   , debugOutputPrefixStr); }
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> long                       getIntegerValue(JSON_Object<NVExtra,VExtra> object, String subValueName, String debugOutputPrefixStr) throws TraverseException { return getValue(object, subValueName, Type.Integer, Value::castToIntegerValue, debugOutputPrefixStr); }
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> double                       getFloatValue(JSON_Object<NVExtra,VExtra> object, String subValueName, String debugOutputPrefixStr) throws TraverseException { return getValue(object, subValueName, Type.Float  , Value::castToFloatValue  , debugOutputPrefixStr); }
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Null                          getNullValue(JSON_Object<NVExtra,VExtra> object, String subValueName, String debugOutputPrefixStr) throws TraverseException { return getValue(object, subValueName, Type.Null   , Value::castToNullValue   , debugOutputPrefixStr); }
+	
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> JSON_Object<NVExtra,VExtra> getObjectValue(Value<NVExtra,VExtra> value, String debugOutputPrefixStr) throws TraverseException { return getValue(value, Type.Object , Value::castToObjectValue , debugOutputPrefixStr); }
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> JSON_Array <NVExtra,VExtra>  getArrayValue(Value<NVExtra,VExtra> value, String debugOutputPrefixStr) throws TraverseException { return getValue(value, Type.Array  , Value::castToArrayValue  , debugOutputPrefixStr); }
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> String                      getStringValue(Value<NVExtra,VExtra> value, String debugOutputPrefixStr) throws TraverseException { return getValue(value, Type.String , Value::castToStringValue , debugOutputPrefixStr); }
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> boolean                       getBoolValue(Value<NVExtra,VExtra> value, String debugOutputPrefixStr) throws TraverseException { return getValue(value, Type.Bool   , Value::castToBoolValue   , debugOutputPrefixStr); }
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> long                       getIntegerValue(Value<NVExtra,VExtra> value, String debugOutputPrefixStr) throws TraverseException { return getValue(value, Type.Integer, Value::castToIntegerValue, debugOutputPrefixStr); }
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> double                       getFloatValue(Value<NVExtra,VExtra> value, String debugOutputPrefixStr) throws TraverseException { return getValue(value, Type.Float  , Value::castToFloatValue  , debugOutputPrefixStr); }
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Null                          getNullValue(Value<NVExtra,VExtra> value, String debugOutputPrefixStr) throws TraverseException { return getValue(value, Type.Null   , Value::castToNullValue   , debugOutputPrefixStr); }
+	
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> JSON_Object<NVExtra,VExtra> getObjectValue(Value<NVExtra,VExtra> value) { return getValue(value, Type.Object , Value::castToObjectValue ); }
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> JSON_Array <NVExtra,VExtra>  getArrayValue(Value<NVExtra,VExtra> value) { return getValue(value, Type.Array  , Value::castToArrayValue  ); }
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> String                      getStringValue(Value<NVExtra,VExtra> value) { return getValue(value, Type.String , Value::castToStringValue ); }
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Boolean                       getBoolValue(Value<NVExtra,VExtra> value) { return getValue(value, Type.Bool   , Value::castToBoolValue   ); }
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Long                       getIntegerValue(Value<NVExtra,VExtra> value) { return getValue(value, Type.Integer, Value::castToIntegerValue); }
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Double                       getFloatValue(Value<NVExtra,VExtra> value) { return getValue(value, Type.Float  , Value::castToFloatValue  ); }
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Null                          getNullValue(Value<NVExtra,VExtra> value) { return getValue(value, Type.Null   , Value::castToNullValue   ); }
 	
 	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> void traverseAllValues(
 			JSON_Object<NVExtra,VExtra> data,
