@@ -258,7 +258,7 @@ public class JSON_Data {
 		Double floatValue = getValue(value, JSON_Data.Value.Type.Float  , JSON_Data.Value::castToFloatValue  , true, debugOutputPrefixStr);
 		if (  intValue!=null) return   intValue.doubleValue();
 		if (floatValue!=null) return floatValue.doubleValue();
-		throw new TraverseException("%s isn't wether an IntegerValue nor a FloatValue", debugOutputPrefixStr);
+		throw new TraverseException("%s isn't either an IntegerValue or a FloatValue", debugOutputPrefixStr);
 	}
 
 	private static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra, ResultType> ResultType getValue( // has specific methods
