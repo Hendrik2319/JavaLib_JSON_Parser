@@ -50,23 +50,23 @@ public class JSON_Parser<NVExtra extends NamedValueExtra, VExtra extends ValueEx
 		this.parseInput = new ParseInput();
 	}
 
-	public static class Result<NVExtra extends NamedValueExtra, VExtra extends ValueExtra> {
-	
-		public final JSON_Array<NVExtra,VExtra> array;
-		public final JSON_Object<NVExtra,VExtra> object;
-	
-		Result(JSON_Array<NVExtra,VExtra> array) {
-			this.object = null;
-			this.array = array;
-		}
-	
-		Result(JSON_Object<NVExtra,VExtra> object) {
-			this.object = object;
-			this.array = null;
-		}
-	}
+//	public static class Result<NVExtra extends NamedValueExtra, VExtra extends ValueExtra> {
+//	
+//		public final JSON_Array<NVExtra,VExtra> array;
+//		public final JSON_Object<NVExtra,VExtra> object;
+//	
+//		Result(JSON_Array<NVExtra,VExtra> array) {
+//			this.object = null;
+//			this.array = array;
+//		}
+//	
+//		Result(JSON_Object<NVExtra,VExtra> object) {
+//			this.object = object;
+//			this.array = null;
+//		}
+//	}
 
-	public Result<NVExtra,VExtra> parse() {
+	public Value<NVExtra,VExtra> parse() {
 		try {
 			return parse_withParseException();
 		} catch (ParseException e) {
@@ -75,7 +75,7 @@ public class JSON_Parser<NVExtra extends NamedValueExtra, VExtra extends ValueEx
 		return null;
 	}
 	
-	public Result<NVExtra,VExtra> parse_withParseException() throws ParseException {
+	public Value<NVExtra,VExtra> parse_withParseException() throws ParseException {
 		//return createTestObject();
 		
 		try (
@@ -83,17 +83,19 @@ public class JSON_Parser<NVExtra extends NamedValueExtra, VExtra extends ValueEx
 				BufferedReader input = new BufferedReader(in );
 		) {
 			parseInput.setReader(input);
-			parseInput.skipWhiteSpaces();
-			char ch = parseInput.getChar();
+			return read_Value();
 			
-			if (ch=='{') {
-				parseInput.setCharConsumed();
-				return new Result<>(read_Object());
-			}
-			if (ch=='[') {
-				parseInput.setCharConsumed();
-				return new Result<>(read_Array());
-			}
+			//parseInput.skipWhiteSpaces();
+			//char ch = parseInput.getChar();
+			//
+			//if (ch=='{') {
+			//	parseInput.setCharConsumed();
+			//	return new Result<>(read_Object());
+			//}
+			//if (ch=='[') {
+			//	parseInput.setCharConsumed();
+			//	return new Result<>(read_Array());
+			//}
 			
 		} catch (IOException e) { e.printStackTrace(); }
 		
