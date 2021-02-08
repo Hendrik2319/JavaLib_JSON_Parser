@@ -69,30 +69,10 @@ public class JSON_Data {
 
 	private static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Value<NVExtra,VExtra> getChild(ObjectValue<NVExtra,VExtra> objectValue, String label, Supplier<String> getPathStr) throws TraverseException {
 		Value<NVExtra,VExtra> value = objectValue.value.getValue(label);
-//		for (NamedValue namedvalue : objectValue.value)
-//			if (namedvalue.name.equals(label))
-//				return namedvalue.value;
 		if (value==null) 
 			throw new TraverseException("This ObjectValue has no child with name \"%s\". [Path: %s]", label, getPathStr.get());
 		return value;
 	}
-	
-//	public Value getSubNode(Object... path) throws PathIsNotSolvableException {
-//		if (path.length==0) return this;
-//		
-//		switch(type) {
-//		case Array:
-//			if (path[0] instanceof Integer)
-//				return getChild((Integer)path[0]);
-//		case Object:
-//			if (path[0] instanceof String)
-//				return getChild((String)path[0]);
-//		default:
-//			break;
-//		}
-//		
-//		throw new PathIsNotSolvableException("Path is not solvable: "+Arrays.toString(path));
-//	}
 	
 	public interface FactoryForExtras<NVExtra extends NamedValueExtra, VExtra extends ValueExtra> {
 		NVExtra createNamedValueExtra(Type type);
@@ -105,7 +85,7 @@ public class JSON_Data {
 		public static class Dummy implements ValueExtra {
 			@Override public void markAsProcessed() {}
 		}
-		public void markAsProcessed(); // baseValue.wasProcessed=true;
+		public void markAsProcessed();
 	}
 	private static class ExtraCalls {
 
@@ -121,13 +101,11 @@ public class JSON_Data {
 		public String name;
 		public final Value<NVExtra,VExtra> value;
 		public final NVExtra extra;
-		//public boolean wasDeObfuscated;
 		
 		public NamedValue(String name, Value<NVExtra,VExtra> value, NVExtra extra) {
 			this.name = name;
 			this.value = value;
 			this.extra = extra;
-			//this.wasDeObfuscated = false;
 		}
 
 		@Override
@@ -136,8 +114,6 @@ public class JSON_Data {
 		}
 		
 	}
-//	boolean wasDeObfuscated = true;
-//	boolean hasObfuscatedChildren = true;
 	
 	public static abstract class Value<NVExtra extends NamedValueExtra, VExtra extends ValueExtra> {
 		
@@ -149,27 +125,11 @@ public class JSON_Data {
 		
 		public final Type type;
 		public final VExtra extra;
-//		public boolean wasProcessed;
-//		protected Boolean hasUnprocessedChildren;
-//		protected Boolean hasObfuscatedChildren;
 
 		public Value(Type type, VExtra extra) {
 			this.type = type;
 			this.extra = extra;
-//			wasProcessed = false;
-//			hasUnprocessedChildren = null;
-//			hasObfuscatedChildren  = null;
 		}
-
-//		public boolean hasUnprocessedChildren() { // default implementation 
-//			hasUnprocessedChildren = false;
-//			return false;
-//		}
-//
-//		public boolean hasObfuscatedChildren() { // default implementation 
-//			hasObfuscatedChildren = false;
-//			return false;
-//		}
 
 		@Override
 		public String toString() {
@@ -208,27 +168,6 @@ public class JSON_Data {
 		public JSON_Array(Collection<? extends Value<NVExtra,VExtra>> values) {
 			super(values);
 		}
-
-//		private ValueType valueType;
-//		
-//		
-//		public JSON_Array() {
-//			this.valueType = null;
-//		}
-//		
-//		public boolean hasMixedContent() {
-//			return !isEmpty() && (valueType == null);
-//		}
-//
-//		@Override
-//		public synchronized boolean add(Value value) {
-//			if (isEmpty())
-//				valueType = value.valueType;
-//			else
-//				if (valueType != value.valueType)
-//					valueType = null;
-//			return super.add(value);
-//		}
 		
 		public String toString(Value.Type expectedType) {
 			return toString(expectedType,null);
