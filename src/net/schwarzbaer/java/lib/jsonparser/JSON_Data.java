@@ -159,6 +159,16 @@ public class JSON_Data {
 					return namedvalue.value;
 			return null;
 		}
+		
+		public void forEach(BiConsumer<String,Value<NVExtra,VExtra>> action) {
+			forEach(nv->action.accept(nv.name, nv.value));
+		}
+		
+		public Vector<String> getNames() {
+			Vector<String> names = new Vector<>();
+			forEach(nv->names.add(nv.name));
+			return names;
+		}
 	}
 
 	public static class JSON_Array<NVExtra extends NamedValueExtra, VExtra extends ValueExtra> extends Vector<Value<NVExtra,VExtra>> {
