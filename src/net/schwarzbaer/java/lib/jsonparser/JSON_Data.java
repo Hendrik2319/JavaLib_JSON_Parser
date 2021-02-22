@@ -452,4 +452,17 @@ public class JSON_Data {
 		if (data==null) throw new IllegalArgumentException();
 		traverseAllValues("", data, consumer, null);
 	}
+	
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> boolean isEmpty(Value<NVExtra, VExtra> value) {
+		if (value==null) return true;
+		if (value instanceof GenericValue && ((GenericValue<?,?,?>) value).value==null) return true;
+		ArrayValue<NVExtra, VExtra> array = value.castToArrayValue();
+		if (array!=null && array.value!=null && array.value.isEmpty()) return true;
+		ObjectValue<NVExtra, VExtra> object = value.castToObjectValue();
+		if (object!=null && object.value!=null && object.value.isEmpty()) return true;
+		StringValue<NVExtra, VExtra> string = value.castToStringValue();
+		if (string!=null && string.value!=null && string.value.isEmpty()) return true;
+		
+		return false;
+	}
 }
