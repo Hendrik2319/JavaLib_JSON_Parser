@@ -391,66 +391,81 @@ public class JSON_Data {
 	
 	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> void traverseAllValues(
 			Value<NVExtra,VExtra> data,
+			boolean pathWithArrayIndexes,
 			BiConsumer<String,NamedValue<NVExtra,VExtra>> consumerNV,
-			BiConsumer<String,     Value<NVExtra,VExtra>> consumerV) {
+			BiConsumer<String,     Value<NVExtra,VExtra>> consumerV
+	) {
 		if (data==null) throw new IllegalArgumentException();
 		if (consumerV !=null) consumerV .accept("",data);
-		if (data.type == Type.Object) traverseAllValues("", data.castToObjectValue().value, consumerNV, consumerV);
-		if (data.type == Type.Array ) traverseAllValues("", data.castToArrayValue ().value, consumerNV, consumerV);
+		if (data.type == Type.Object) traverseAllValues("", data.castToObjectValue().value, pathWithArrayIndexes, consumerNV, consumerV);
+		if (data.type == Type.Array ) traverseAllValues("", data.castToArrayValue ().value, pathWithArrayIndexes, consumerNV, consumerV);
 	}
 	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> void traverseAllValues(
 			JSON_Object<NVExtra,VExtra> data,
+			boolean pathWithArrayIndexes,
 			BiConsumer<String,NamedValue<NVExtra,VExtra>> consumerNV,
-			BiConsumer<String,     Value<NVExtra,VExtra>> consumerV) {
+			BiConsumer<String,     Value<NVExtra,VExtra>> consumerV
+	) {
 		if (data==null) throw new IllegalArgumentException();
-		traverseAllValues("", data, consumerNV, consumerV);
+		traverseAllValues("", data, pathWithArrayIndexes, consumerNV, consumerV);
 	}
 	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> void traverseAllValues(
 			JSON_Array<NVExtra,VExtra> data,
+			boolean pathWithArrayIndexes,
 			BiConsumer<String,NamedValue<NVExtra,VExtra>> consumerNV,
-			BiConsumer<String,     Value<NVExtra,VExtra>> consumerV) {
+			BiConsumer<String,     Value<NVExtra,VExtra>> consumerV
+	) {
 		if (data==null) throw new IllegalArgumentException();
-		traverseAllValues("", data, consumerNV, consumerV);
+		traverseAllValues("", data, pathWithArrayIndexes, consumerNV, consumerV);
 	}
 	private static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> void traverseAllValues(
 			String path, JSON_Object<NVExtra, VExtra> data,
+			boolean pathWithArrayIndexes,
 			BiConsumer<String, NamedValue<NVExtra, VExtra>> consumerNV,
-			BiConsumer<String,      Value<NVExtra, VExtra>> consumerV) {
+			BiConsumer<String,      Value<NVExtra, VExtra>> consumerV
+	) {
 		String newPath;
 		for (NamedValue<NVExtra,VExtra> nv : data) {
 			Value<NVExtra, VExtra> v = nv.value;
 			newPath = path + (path.isEmpty()?"":".") + nv.name;
 			if (consumerNV!=null) consumerNV.accept(newPath,nv);
 			if (consumerV !=null) consumerV .accept(newPath,v);
-			if (v.type == Type.Object) traverseAllValues(newPath, v.castToObjectValue().value, consumerNV, consumerV);
-			if (v.type == Type.Array ) traverseAllValues(newPath, v.castToArrayValue ().value, consumerNV, consumerV);
+			if (v.type == Type.Object) traverseAllValues(newPath, v.castToObjectValue().value, pathWithArrayIndexes, consumerNV, consumerV);
+			if (v.type == Type.Array ) traverseAllValues(newPath, v.castToArrayValue ().value, pathWithArrayIndexes, consumerNV, consumerV);
 		}
 	}
 	private static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> void traverseAllValues(
 			String path, JSON_Array<NVExtra, VExtra> array,
+			boolean pathWithArrayIndexes,
 			BiConsumer<String,NamedValue<NVExtra, VExtra>> consumerNV,
-			BiConsumer<String,     Value<NVExtra, VExtra>> consumerV) {
+			BiConsumer<String,     Value<NVExtra, VExtra>> consumerV
+	) {
 		String newPath;
 		for (int i=0; i<array.size(); i++) {
 			Value<NVExtra,VExtra> v = array.get(i);
-			newPath = path + "["+i+"]";
+			newPath = path + "["+(pathWithArrayIndexes?Integer.toString(i):"")+"]";
 			if (consumerV !=null) consumerV .accept(newPath,v);
-			if (v.type == Type.Object) traverseAllValues(newPath, v.castToObjectValue().value, consumerNV, consumerV);
-			if (v.type == Type.Array ) traverseAllValues(newPath, v.castToArrayValue ().value, consumerNV, consumerV);
+			if (v.type == Type.Object) traverseAllValues(newPath, v.castToObjectValue().value, pathWithArrayIndexes, consumerNV, consumerV);
+			if (v.type == Type.Array ) traverseAllValues(newPath, v.castToArrayValue ().value, pathWithArrayIndexes, consumerNV, consumerV);
 		}
 	}
 	
 	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> void traverseNamedValues(
 			JSON_Object<NVExtra,VExtra> data,
-			BiConsumer<String,NamedValue<NVExtra,VExtra>> consumer) {
+			boolean pathWithArrayIndexes,
+			BiConsumer<String,NamedValue<NVExtra,VExtra>> consumer
+	) {
 		if (data==null) throw new IllegalArgumentException();
-		traverseAllValues("", data, consumer, null);
+		traverseAllValues("", data, pathWithArrayIndexes, consumer, null);
 	}
+	
 	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> void traverseNamedValues(
 			JSON_Array<NVExtra,VExtra> data,
-			BiConsumer<String,NamedValue<NVExtra,VExtra>> consumer) {
+			boolean pathWithArrayIndexes,
+			BiConsumer<String,NamedValue<NVExtra,VExtra>> consumer
+	) {
 		if (data==null) throw new IllegalArgumentException();
-		traverseAllValues("", data, consumer, null);
+		traverseAllValues("", data, pathWithArrayIndexes, consumer, null);
 	}
 	
 	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> boolean isEmpty(Value<NVExtra, VExtra> value) {
