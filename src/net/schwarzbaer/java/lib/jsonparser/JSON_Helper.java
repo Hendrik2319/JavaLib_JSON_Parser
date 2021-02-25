@@ -125,7 +125,7 @@ public class JSON_Helper {
 			return sb.toString();
 		}
 
-		void show(PrintStream out) {
+		public void show(PrintStream out) {
 			if (isEmpty()) return;
 			String indent = "    ";
 			Vector<String> prefixStrs = new Vector<>(keySet());
@@ -138,7 +138,7 @@ public class JSON_Helper {
 				
 		}
 		
-		static class BlockTypes {
+		private static class BlockTypes {
 			HashMap<String,Types> objectValues = new HashMap<>();
 			Types baseValue = null;
 
@@ -162,7 +162,7 @@ public class JSON_Helper {
 			}
 		}
 
-		static class Types {
+		private static class Types {
 			
 			HashSet<JSON_Data.Value.Type> types = new HashSet<>();
 			Types arrayValueTypes = null;
