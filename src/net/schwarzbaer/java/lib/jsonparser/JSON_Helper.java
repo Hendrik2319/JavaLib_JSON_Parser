@@ -126,11 +126,14 @@ public class JSON_Helper {
 		}
 
 		public void show(PrintStream out) {
+			show("Optional JSON Values",out);
+		}
+		public void show(String label, PrintStream out) {
 			if (isEmpty()) return;
 			String indent = "    ";
 			Vector<String> prefixStrs = new Vector<>(keySet());
 			prefixStrs.sort(null);
-			out.printf("Optional JSON Values: [%d blocks]%n", prefixStrs.size());
+			out.printf("%s: [%d blocks]%n", label, prefixStrs.size());
 			for (String prefixStr:prefixStrs) {
 				BlockTypes valueMap = get(prefixStr);
 				valueMap.show(out, indent, prefixStr);
