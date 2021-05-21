@@ -489,4 +489,30 @@ public class JSON_Data {
 		
 		return false;
 	}
+
+	public static String decodeUnicodeAndHTML(String str) {
+		return decodeHTML(decodeUnicode(str));
+	}
+
+	public static String decodeHTML(String str) {
+		if (str==null) return null; // &quot;
+		return str.replace("&quot;", "\"").replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&");
+	}
+
+	public static String decodeUnicode(String str) {
+		if (str==null) return null;
+		int pos;
+		int startPos = 0;
+		while ( (pos=str.indexOf("\\u",startPos))>=0 ) {
+			if (str.length()<pos+6) break;
+			String prefix = str.substring(0, pos);
+			String suffix = str.substring(pos+6);
+			String codeStr = str.substring(pos+2,pos+6);
+			int code;
+			try { code = Integer.parseUnsignedInt(codeStr,16); }
+			catch (NumberFormatException e) { startPos = pos+2; continue; }
+			str = prefix + ((char)code) + suffix;
+		}
+		return str;
+	}
 }
