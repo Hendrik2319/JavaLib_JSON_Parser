@@ -202,6 +202,17 @@ public class JSON_Data {
 			}
 			return "[ "+str+" ]";
 		}
+		
+		public interface DataTypeParser<DataType, NVExtra_ extends NamedValueExtra, VExtra_ extends ValueExtra> {
+			DataType parse(Value<NVExtra_,VExtra_> value, String debugOutputPrefixStr) throws TraverseException;
+		}
+		
+		public <DataType> Vector<DataType> parseContent(DataTypeParser<DataType,NVExtra,VExtra> dataTypeParser, String debugOutputPrefixStr, String arrayLabel) throws TraverseException {
+	        Vector<DataType> values = new Vector<DataType>();
+			for (int i=0; i<size(); i++)
+				values.add(dataTypeParser.parse(get(i), String.format("%s.%s[%d]", debugOutputPrefixStr, arrayLabel, i)));
+			return values;
+		}
 	}
 
 	public static class Null {
