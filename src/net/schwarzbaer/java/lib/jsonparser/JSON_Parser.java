@@ -7,8 +7,10 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.StringReader;
+import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
+import java.util.function.Consumer;
 
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.ArrayValue;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.BoolValue;
@@ -76,6 +78,10 @@ public class JSON_Parser<NVExtra extends NamedValueExtra, VExtra extends ValueEx
 	}
 	
 	public Value<NVExtra,VExtra> parse_withParseException() throws ParseException {
+		return parse_withParseException(null);
+	}
+	
+	public Value<NVExtra,VExtra> parse_withParseException(Consumer<String> consumeRemainingContent) throws ParseException {
 		//return createTestObject();
 		
 		try (
@@ -83,7 +89,19 @@ public class JSON_Parser<NVExtra extends NamedValueExtra, VExtra extends ValueEx
 				BufferedReader input = new BufferedReader(in );
 		) {
 			parseInput.setReader(input);
-			return read_Value();
+			Value<NVExtra, VExtra> value = read_Value();
+			
+			if (consumeRemainingContent!=null) {
+				try (StringWriter out = new StringWriter()) {
+					input.transferTo(out);
+					String content = out.toString();
+					if (!parseInput.wasCharConsumed())
+						content = parseInput.getChar() + content;
+					consumeRemainingContent.accept(content);
+				} catch (IOException e) { e.printStackTrace(); } 
+			}
+			
+			return value;
 			
 			//parseInput.skipWhiteSpaces();
 			//char ch = parseInput.getChar();
