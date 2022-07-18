@@ -187,8 +187,7 @@ public class JSON_Helper {
 				Vector<JSON_Data.Value.Type> types = new Vector<>(this.types);
 				types.sort(Comparator.nullsLast(Comparator.naturalOrder()));
 				StringBuilder sb = new StringBuilder();
-				if      (types.size()==1) sb.append(types.firstElement());
-				else if (types.size()> 1) sb.append(types.toString());
+				toString(types, sb);
 				if (isEmptyArrayPossible) {
 					if (sb.length()>0) sb.append(" or ");
 					sb.append("empty array");
@@ -209,6 +208,16 @@ public class JSON_Helper {
 //					}
 //					out.printf("      %s%s%n", name, comment);
 //				}
+			}
+			private void toString(Vector<JSON_Data.Value.Type> types, StringBuilder sb) {
+				if      (types.size()==1) sb.append(toString(types.firstElement()));
+				else if (types.size()> 1) {
+					Iterable<String> it = ()->types.stream().map(this::toString).iterator();
+					sb.append(String.format("[%s]", String.join(", ", it))); 
+				}
+			}
+			private String toString(JSON_Data.Value.Type t) {
+				return t==null ? "<unset>" : t.toString();
 			}
 		}
 	}
