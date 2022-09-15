@@ -5,16 +5,18 @@ import java.io.IOException;
 
 class ParseInput {
 	
+	final BufferedReader input;
 	private int ch;
 	private long charPos;
 	private boolean charWasConsumed;
-	private BufferedReader input;
 	private boolean isEOF;
 	
-	ParseInput() {
-		this.ch = 0;
-		this.charPos = -1;
-		this.charWasConsumed = false;
+	ParseInput(BufferedReader input) {
+		this.input = input;
+		ch = 0;
+		charPos = -1;
+		charWasConsumed = false;
+		isEOF = false;
 	}
 	
 	boolean readChar() throws IOException {
@@ -38,10 +40,6 @@ class ParseInput {
 	}
 	boolean wasCharConsumed() {
 		return charWasConsumed;
-	}
-	
-	void setReader(BufferedReader input) {
-		this.input = input;
 	}
 
 	boolean isEOF() {

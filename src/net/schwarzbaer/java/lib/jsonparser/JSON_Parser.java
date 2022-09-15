@@ -4,11 +4,11 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.Reader;
 import java.io.StringReader;
 import java.io.StringWriter;
-import java.nio.charset.StandardCharsets;
+import java.nio.charset.Charset;
 import java.util.Locale;
 import java.util.function.Consumer;
 
@@ -30,95 +30,113 @@ import net.schwarzbaer.java.lib.jsonparser.JSON_Data.Value.Type;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.ValueExtra;
 
 public class JSON_Parser<NVExtra extends NamedValueExtra, VExtra extends ValueExtra> {
-	private final File sourcefile;
+	
+	public static <NV extends NamedValueExtra, V extends ValueExtra> Value<NV,V> parse(
+			String json_text,
+			FactoryForExtras<NV, V> factoryForExtras,
+			Consumer<String> consumeRemainingContent
+			)
+	{
+		try
+		{
+			return parse_withParseException(json_text, factoryForExtras, consumeRemainingContent);
+		}
+		catch (ParseException e) { e.printStackTrace(); }
+		return null;
+	}
+
+	public static <NV extends NamedValueExtra, V extends ValueExtra> Value<NV,V> parse(
+			File sourcefile, Charset charset,
+			FactoryForExtras<NV, V> factoryForExtras,
+			Consumer<String> consumeRemainingContent
+			)
+	{
+		try
+		{
+			return parse_withParseException(sourcefile, charset, factoryForExtras, consumeRemainingContent);
+		}
+		catch (ParseException e) { e.printStackTrace(); }
+		return null;
+	}
+
+	public static <NV extends NamedValueExtra, V extends ValueExtra> Value<NV,V> parse(
+			InputStream inputStream, Charset charset,
+			FactoryForExtras<NV, V> factoryForExtras,
+			Consumer<String> consumeRemainingContent
+			)
+	{
+		try
+		{
+			return parse_withParseException(inputStream, charset, factoryForExtras, consumeRemainingContent);
+		}
+		catch (ParseException e) { e.printStackTrace(); }
+		return null;
+	}
+
+	public static <NV extends NamedValueExtra, V extends ValueExtra> Value<NV,V> parse_withParseException(
+			String json_text,
+			FactoryForExtras<NV, V> factoryForExtras,
+			Consumer<String> consumeRemainingContent
+			) throws ParseException
+	{
+		try ( BufferedReader input = new BufferedReader( new StringReader(json_text) ); )
+		{
+			return new JSON_Parser<>(input, factoryForExtras).parse(consumeRemainingContent);
+		}
+		catch (IOException e) { e.printStackTrace(); }
+		return null;
+	}
+
+	public static <NV extends NamedValueExtra, V extends ValueExtra> Value<NV,V> parse_withParseException(
+			File sourcefile, Charset charset,
+			FactoryForExtras<NV, V> factoryForExtras,
+			Consumer<String> consumeRemainingContent
+			) throws ParseException
+	{
+		try ( BufferedReader input = new BufferedReader( new InputStreamReader(new FileInputStream(sourcefile), charset) ); )
+		{
+			return new JSON_Parser<>(input, factoryForExtras).parse(consumeRemainingContent);
+		}
+		catch (IOException e) { e.printStackTrace(); }
+		return null;
+	}
+
+	public static <NV extends NamedValueExtra, V extends ValueExtra> Value<NV,V> parse_withParseException(
+			InputStream inputStream, Charset charset,
+			FactoryForExtras<NV, V> factoryForExtras,
+			Consumer<String> consumeRemainingContent
+			) throws ParseException
+	{
+		try ( BufferedReader input = new BufferedReader( new InputStreamReader(inputStream, charset) ); )
+		{
+			return new JSON_Parser<>(input, factoryForExtras).parse(consumeRemainingContent);
+		}
+		catch (IOException e) { e.printStackTrace(); }
+		return null;
+	}
+
 	private final ParseInput parseInput;
-	private final String json_text;
 	private final FactoryForExtras<NVExtra, VExtra> factoryForExtras;
 
-	public JSON_Parser( File sourcefile, FactoryForExtras<NVExtra, VExtra> factoryForExtras) {
-		this(sourcefile,null,factoryForExtras);
-		if (sourcefile==null) throw new IllegalArgumentException();
-	}
-
-	public JSON_Parser(String json_text, FactoryForExtras<NVExtra, VExtra> factoryForExtras) {
-		this(null,json_text,factoryForExtras);
-		if (json_text==null) throw new IllegalArgumentException();
-	}
-
-	private JSON_Parser(File sourcefile, String json_text, FactoryForExtras<NVExtra, VExtra> factoryForExtras) {
-		this.sourcefile = sourcefile;
-		this.json_text = json_text;
+	private JSON_Parser(BufferedReader input, FactoryForExtras<NVExtra, VExtra> factoryForExtras) {
 		this.factoryForExtras = factoryForExtras;
-		this.parseInput = new ParseInput();
+		this.parseInput = new ParseInput(input);
 	}
 
-//	public static class Result<NVExtra extends NamedValueExtra, VExtra extends ValueExtra> {
-//	
-//		public final JSON_Array<NVExtra,VExtra> array;
-//		public final JSON_Object<NVExtra,VExtra> object;
-//	
-//		Result(JSON_Array<NVExtra,VExtra> array) {
-//			this.object = null;
-//			this.array = array;
-//		}
-//	
-//		Result(JSON_Object<NVExtra,VExtra> object) {
-//			this.object = object;
-//			this.array = null;
-//		}
-//	}
-
-	public Value<NVExtra,VExtra> parse() {
-		try {
-			return parse_withParseException();
-		} catch (ParseException e) {
-			e.printStackTrace();
+	private Value<NVExtra, VExtra> parse(Consumer<String> consumeRemainingContent) throws ParseException {
+		Value<NVExtra, VExtra> value = read_Value();
+		
+		if (consumeRemainingContent!=null) {
+			try (StringWriter out = new StringWriter()) {
+				parseInput.input.transferTo(out);
+				String content = out.toString();
+				if (!parseInput.wasCharConsumed())
+					content = parseInput.getChar() + content;
+				consumeRemainingContent.accept(content);
+			} catch (IOException e) { e.printStackTrace(); } 
 		}
-		return null;
-	}
-	
-	public Value<NVExtra,VExtra> parse_withParseException() throws ParseException {
-		return parse_withParseException(null);
-	}
-	
-	public Value<NVExtra,VExtra> parse_withParseException(Consumer<String> consumeRemainingContent) throws ParseException {
-		//return createTestObject();
 		
-		try (
-				Reader in = sourcefile==null ? new StringReader(json_text) : new InputStreamReader(new FileInputStream(sourcefile), StandardCharsets.UTF_8);
-				BufferedReader input = new BufferedReader(in );
-		) {
-			parseInput.setReader(input);
-			Value<NVExtra, VExtra> value = read_Value();
-			
-			if (consumeRemainingContent!=null) {
-				try (StringWriter out = new StringWriter()) {
-					input.transferTo(out);
-					String content = out.toString();
-					if (!parseInput.wasCharConsumed())
-						content = parseInput.getChar() + content;
-					consumeRemainingContent.accept(content);
-				} catch (IOException e) { e.printStackTrace(); } 
-			}
-			
-			return value;
-			
-			//parseInput.skipWhiteSpaces();
-			//char ch = parseInput.getChar();
-			//
-			//if (ch=='{') {
-			//	parseInput.setCharConsumed();
-			//	return new Result<>(read_Object());
-			//}
-			//if (ch=='[') {
-			//	parseInput.setCharConsumed();
-			//	return new Result<>(read_Array());
-			//}
-			
-		} catch (IOException e) { e.printStackTrace(); }
-		
-		
-		return null;
+		return value;
 	}
 	
 	private VExtra createValueExtra(Type type) {
