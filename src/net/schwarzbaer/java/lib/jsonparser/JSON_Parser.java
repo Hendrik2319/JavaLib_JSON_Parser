@@ -361,7 +361,7 @@ public class JSON_Parser<NVExtra extends NamedValueExtra, VExtra extends ValueEx
 			}
 		}
 		
-		if (parseInput.getChar()=='e') {
+		if (parseInput.getChar()=='e' || parseInput.getChar()=='E') {
 			try {
 				if (parseInput.readChar()) {
 					if (parseInput.getChar()=='-') {
