@@ -301,13 +301,24 @@ public class JSON_Data {
 			boolean isOptionalType,
 			String debugOutputPrefixStr
 	) throws TraverseException {
+		Value<NVExtra,VExtra> value = getValue(object, subValueName, isOptionalValue, debugOutputPrefixStr);
+		if (value==null) return null; // was optional value
+		return getValue(value, type, cast, isOptionalType, debugOutputPrefixStr+"."+subValueName);
+	}
+	
+	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Value<NVExtra,VExtra> getValue(
+			JSON_Object<NVExtra,VExtra> object,
+			String subValueName,
+			boolean isOptionalValue,
+			String debugOutputPrefixStr
+	) throws TraverseException {
 		if (object==null) throw new TraverseException("%s==NULL", debugOutputPrefixStr);
 		Value<NVExtra,VExtra> value = object.getValue(subValueName);
 		if (value==null) {
 			if (isOptionalValue) return null;
 			throw new TraverseException("%s.%s don't exists", debugOutputPrefixStr, subValueName);
 		}
-		return getValue(value, type, cast, isOptionalType, debugOutputPrefixStr+"."+subValueName);
+		return value;
 	}
 	
 	private static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra, ResultType> ResultType getValue( // has specific methods
