@@ -12,6 +12,102 @@ import net.schwarzbaer.java.lib.jsonparser.JSON_Data.NamedValueExtra;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.ValueExtra;
 
 public class JSON_Helper {
+
+	private static abstract class KnownValues<SelfType,NodeType,TypeType> {
+		private final String defaultPrefixStr;
+		private final HashMap<String,HashSet<TypeType>> knownValues;
+		
+		private KnownValues(String packagePrefix, Class<?> dataClass, String annex)
+		{
+			knownValues = new HashMap<>();
+			
+			if (dataClass == null)
+				defaultPrefixStr = null;
+			else
+			{
+				String str = dataClass.getCanonicalName();
+				if (str==null) str = dataClass.getName();
+				
+				if (str.startsWith(packagePrefix))
+					str = str.substring(packagePrefix.length());
+				
+				if (annex!=null)
+					str += annex;
+				defaultPrefixStr = str;
+			}
+		}
+		
+		public SelfType add(String name, TypeType type) {
+			HashSet<TypeType> hashSet = knownValues.get(name);
+			if (hashSet==null) knownValues.put(name,hashSet = new HashSet<>());
+			hashSet.add(type);
+			return getThis();
+		}
+		
+		protected boolean contains(String name, TypeType type) {
+			HashSet<TypeType> hashSet = knownValues.get(name);
+			return hashSet!=null && hashSet.contains(type);
+		}
+		
+		protected abstract SelfType getThis();
+		
+		public final void scanUnexpectedValues(NodeType node)
+		{
+			if (defaultPrefixStr==null) throw new IllegalStateException("Can't call scanUnexpectedValues without prefixStr, if KnownValues was constructed without class object.");
+			scanUnexpectedValues(node, defaultPrefixStr);
+		}
+		
+		public abstract void scanUnexpectedValues(NodeType node, String prefixStr);
+	}
+
+	public static class KnownJsonValues<NV extends NamedValueExtra, V extends ValueExtra> extends KnownValues<KnownJsonValues<NV,V>, JSON_Object<NV,V>, JSON_Data.Value.Type>
+	{
+		private final HashSet<String> unknownValueStatements;
+
+		private KnownJsonValues(HashSet<String> unknownValueStatements, String packagePrefix, Class<?> dataClass, String annex) {
+			super(packagePrefix, dataClass, annex);
+			this.unknownValueStatements = unknownValueStatements;
+		}
+		
+		@Override protected KnownJsonValues<NV,V> getThis() { return this; }
+		
+		@Override public void scanUnexpectedValues(JSON_Object<NV, V> object, String prefixStr) {
+			for (JSON_Data.NamedValue<NV,V> nvalue:object)
+				if (!contains(nvalue.name, nvalue.value.type))
+					unknownValueStatements.add(String.format("%s.%s:%s", prefixStr, nvalue.name, nvalue.value.type));
+		}
+	}
+
+	public static class KnownJsonValuesFactory<NV extends NamedValueExtra, V extends ValueExtra>
+	{
+		private final HashSet<String> unknownValueStatements;
+		private final String packagePrefix;
+		
+		public KnownJsonValuesFactory(String packagePrefix) {
+			this.packagePrefix = packagePrefix;
+			unknownValueStatements = new HashSet<>();
+		}
+		
+		public void clearStatementList()
+		{
+			unknownValueStatements.clear();
+		}
+		
+		public void showStatementList(PrintStream out, String title) {
+			if (unknownValueStatements.isEmpty()) return;
+			Vector<String> vec = new Vector<>(unknownValueStatements);
+			out.printf("%s: [%d]%n", title, vec.size());
+			vec.sort(Comparator.<String,String>comparing(String::toLowerCase).thenComparing(Comparator.naturalOrder()));
+			for (String str:vec)
+				out.printf("   %s%n", str);
+		}
+		
+		public KnownJsonValues<NV,V> create() { return create(null, null); }
+		public KnownJsonValues<NV,V> create(Class<?> dataClass) { return create(dataClass, null); }
+		public KnownJsonValues<NV,V> create(Class<?> dataClass, String annex) {
+			return new KnownJsonValues<>(unknownValueStatements, packagePrefix, dataClass, annex);
+		}
+	}
 	
 	public static class OptionalValues<NV extends NamedValueExtra, V extends ValueExtra> extends HashMap<String,OptionalValues.BlockTypes> {
 		private static final long serialVersionUID = -8422934659235134268L;
