@@ -17,13 +17,11 @@ public class JSON_Helper {
 		private final String defaultPrefixStr;
 		private final HashMap<String,HashSet<TypeType>> knownValues;
 		
-		private KnownValues(String packagePrefix, Class<?> dataClass, String annex)
+		private KnownValues(String packagePrefix, Class<?> dataClass, String annex, String defaultPrefixStr)
 		{
 			knownValues = new HashMap<>();
 			
-			if (dataClass == null)
-				defaultPrefixStr = null;
-			else
+			if (dataClass != null)
 			{
 				String str = dataClass.getCanonicalName();
 				if (str==null) str = dataClass.getName();
@@ -33,8 +31,10 @@ public class JSON_Helper {
 				
 				if (annex!=null)
 					str += annex;
-				defaultPrefixStr = str;
+				this.defaultPrefixStr = str;
 			}
+			else
+				this.defaultPrefixStr = defaultPrefixStr;
 		}
 		
 		public SelfType add(String name, TypeType type) {
@@ -64,8 +64,8 @@ public class JSON_Helper {
 	{
 		private final HashSet<String> unknownValueStatements;
 
-		private KnownJsonValues(HashSet<String> unknownValueStatements, String packagePrefix, Class<?> dataClass, String annex) {
-			super(packagePrefix, dataClass, annex);
+		private KnownJsonValues(HashSet<String> unknownValueStatements, String packagePrefix, Class<?> dataClass, String annex, String defaultPrefixStr) {
+			super(packagePrefix, dataClass, annex, defaultPrefixStr);
 			this.unknownValueStatements = unknownValueStatements;
 		}
 		
@@ -102,10 +102,13 @@ public class JSON_Helper {
 				out.printf("   %s%n", str);
 		}
 		
-		public KnownJsonValues<NV,V> create() { return create(null, null); }
-		public KnownJsonValues<NV,V> create(Class<?> dataClass) { return create(dataClass, null); }
-		public KnownJsonValues<NV,V> create(Class<?> dataClass, String annex) {
-			return new KnownJsonValues<>(unknownValueStatements, packagePrefix, dataClass, annex);
+		public KnownJsonValues<NV,V> create(                                ) { return create(null     , null , null            ); }
+		public KnownJsonValues<NV,V> create(Class<?> dataClass              ) { return create(dataClass, null , null            ); }
+		public KnownJsonValues<NV,V> create(Class<?> dataClass, String annex) { return create(dataClass, annex, null            ); }
+		public KnownJsonValues<NV,V> create(String defaultPrefixStr         ) { return create(null     , null , defaultPrefixStr); }
+		
+		private KnownJsonValues<NV,V> create(Class<?> dataClass, String annex, String defaultPrefixStr) {
+			return new KnownJsonValues<>(unknownValueStatements, packagePrefix, dataClass, annex, defaultPrefixStr);
 		}
 	}
 	
