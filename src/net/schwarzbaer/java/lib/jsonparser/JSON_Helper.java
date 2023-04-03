@@ -17,24 +17,10 @@ public class JSON_Helper {
 		private final String defaultPrefixStr;
 		private final HashMap<String,HashSet<TypeType>> knownValues;
 		
-		private KnownValues(String packagePrefix, Class<?> dataClass, String annex, String defaultPrefixStr)
+		private KnownValues(String defaultPrefixStr)
 		{
 			knownValues = new HashMap<>();
-			
-			if (dataClass != null)
-			{
-				String str = dataClass.getCanonicalName();
-				if (str==null) str = dataClass.getName();
-				
-				if (str.startsWith(packagePrefix))
-					str = str.substring(packagePrefix.length());
-				
-				if (annex!=null)
-					str += annex;
-				this.defaultPrefixStr = str;
-			}
-			else
-				this.defaultPrefixStr = defaultPrefixStr;
+			this.defaultPrefixStr = defaultPrefixStr;
 		}
 		
 		public SelfType add(String name, TypeType type) {
@@ -64,8 +50,8 @@ public class JSON_Helper {
 	{
 		private final HashSet<String> unknownValueStatements;
 
-		private KnownJsonValues(HashSet<String> unknownValueStatements, String packagePrefix, Class<?> dataClass, String annex, String defaultPrefixStr) {
-			super(packagePrefix, dataClass, annex, defaultPrefixStr);
+		private KnownJsonValues(HashSet<String> unknownValueStatements, String defaultPrefixStr) {
+			super(defaultPrefixStr);
 			this.unknownValueStatements = unknownValueStatements;
 		}
 		
@@ -102,13 +88,25 @@ public class JSON_Helper {
 				out.printf("   %s%n", str);
 		}
 		
-		public KnownJsonValues<NV,V> create(                                ) { return create(null     , null , null            ); }
-		public KnownJsonValues<NV,V> create(Class<?> dataClass              ) { return create(dataClass, null , null            ); }
-		public KnownJsonValues<NV,V> create(Class<?> dataClass, String annex) { return create(dataClass, annex, null            ); }
-		public KnownJsonValues<NV,V> create(String defaultPrefixStr         ) { return create(null     , null , defaultPrefixStr); }
+		public KnownJsonValues<NV,V> create(Class<?> dataClass              ) { return create(dataClass, null ); }
+		public KnownJsonValues<NV,V> create(Class<?> dataClass, String annex) {
+			if (dataClass == null) throw new IllegalArgumentException();
+			
+			String prefixStr = dataClass.getCanonicalName();
+			if (prefixStr==null) prefixStr = dataClass.getName();
+			
+			if (prefixStr.startsWith(packagePrefix))
+				prefixStr = prefixStr.substring(packagePrefix.length());
+			
+			if (annex!=null)
+				prefixStr += annex;
+			
+			return create(prefixStr);
+		}
 		
-		private KnownJsonValues<NV,V> create(Class<?> dataClass, String annex, String defaultPrefixStr) {
-			return new KnownJsonValues<>(unknownValueStatements, packagePrefix, dataClass, annex, defaultPrefixStr);
+		public KnownJsonValues<NV,V> create() { return create((String)null); }
+		public KnownJsonValues<NV,V> create(String defaultPrefixStr) {
+			return new KnownJsonValues<>(unknownValueStatements, defaultPrefixStr);
 		}
 	}
 	
