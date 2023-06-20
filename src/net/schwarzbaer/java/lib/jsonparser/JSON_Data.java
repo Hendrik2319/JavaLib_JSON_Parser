@@ -13,7 +13,6 @@ import net.schwarzbaer.java.lib.jsonparser.JSON_Data.Value.Type;
 
 public class JSON_Data {
 	
-	// test
 	public static class TraverseException extends Exception {
 		private static final long serialVersionUID = -2729201690665554532L;
 		public TraverseException(String message) {
