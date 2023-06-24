@@ -164,7 +164,7 @@ public class JSON_Parser<NVExtra extends NamedValueExtra, VExtra extends ValueEx
 			Null null_ = read_Null();
 			return new NullValue<>(null_, createValueExtra(Type.Null));
 		}
-		if (ch=='f' || ch=='t') {
+		if (ch=='f' || ch=='t' || ch=='F' || ch=='T') {
 			boolean bool = read_Bool();
 			return new BoolValue<>(bool, createValueExtra(Type.Bool));
 		}
@@ -296,13 +296,13 @@ public class JSON_Parser<NVExtra extends NamedValueExtra, VExtra extends ValueEx
 		// pre: last char was NOT consumed
 		// post: last char is consumed
 		
-		if (parseInput.getChar()=='f') {
-			if (!parseInput.readKnownChars("alse")) 
+		if (parseInput.getChar()=='f' || parseInput.getChar()=='F') {
+			if (!parseInput.readKnownChars("alse", true)) 
 				throw new ParseException(parseInput.getCharPos(),"Unexpected keyword.");
 			return false;
 		}
-		if (parseInput.getChar()=='t') {
-			if (!parseInput.readKnownChars("rue")) 
+		if (parseInput.getChar()=='t' || parseInput.getChar()=='T') {
+			if (!parseInput.readKnownChars("rue", true)) 
 				throw new ParseException(parseInput.getCharPos(),"Unexpected keyword.");
 			return true;
 		}

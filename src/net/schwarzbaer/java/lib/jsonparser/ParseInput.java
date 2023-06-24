@@ -60,10 +60,21 @@ class ParseInput {
 	}
 
 	public boolean readKnownChars(String string) {
+		return readKnownChars(string, false);
+	}
+
+	public boolean readKnownChars(String string, boolean ignoreCase) {
 		for (int i=0; i<string.length(); ++i) {
 			try { if (!readChar()) return false; }
 			catch (IOException e) { e.printStackTrace(); }
-			if (getChar() != string.charAt(i) )
+			char readChar = getChar();
+			char strChar  = string.charAt(i);
+			if (ignoreCase)
+			{
+				readChar = Character.toLowerCase(readChar);
+				strChar  = Character.toLowerCase(strChar );
+			}
+			if (readChar != strChar )
 				return false;
 			else
 				setCharConsumed();
