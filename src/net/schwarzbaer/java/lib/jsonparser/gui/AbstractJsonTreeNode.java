@@ -9,13 +9,14 @@ import javax.swing.tree.TreeNode;
 
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.NamedValueExtra;
-import net.schwarzbaer.java.lib.jsonparser.JSON_Data.Value;
 import net.schwarzbaer.java.lib.jsonparser.JSON_Data.ValueExtra;
+import net.schwarzbaer.java.lib.jsonparser.JSON_Data.Value.Type;
 
 public class AbstractJsonTreeNode<NV extends NamedValueExtra, V extends ValueExtra, SelfType extends AbstractJsonTreeNode<NV,V,?>> extends AbstractTreeNode
 {
-	private final String name;
-	private final JSON_Data.Value<NV, V> value;
+	public final AbstractJsonTreeNode<NV, V, ?> parent;
+	public final String name;
+	public final JSON_Data.Value<NV, V> value;
 	private final boolean showNamedValuesSorted;
 	private final Factory<NV,V,SelfType> factory;
 
@@ -23,67 +24,45 @@ public class AbstractJsonTreeNode<NV extends NamedValueExtra, V extends ValueExt
 		this(null, null, value, showNamedValuesSorted, factory);
 	}
 	public AbstractJsonTreeNode(AbstractJsonTreeNode<NV,V,?> parent, String name, JSON_Data.Value<NV,V> value, boolean showNamedValuesSorted, Factory<NV,V,SelfType> factory) {
-		//super(parent, allowsChildren_, isLeaf_, icon_, color_);
 		super(parent, factory.allowsChildren(value), factory.isLeaf(value), factory.getIcon(value), factory.getColor(value));
+		this.parent = parent;
 		this.name = name;
 		this.value = value;
 		this.showNamedValuesSorted = showNamedValuesSorted;
 		this.factory = factory;
 	}
 	
-//	public String[] getPath() { return PathElement.toStringArr(getPath(0)); }
-	public String   getName() { return name; }
-	public String   getValue() { return getValueString(); }
+	public String getPath() {
+		if (parent==null)
+		{
+			if (name != null)
+				return String.format("[root \"%s\"]",name);
+			return "[root]";
+		}
+		if (name==null)
+		{
+			if (parent.value==null || parent.value.type!=Type.Array)
+				return String.format("%s.<nameless value inside of non array>", parent.getPath());
+			return String.format("%s[%d]", parent.getPath(), parent.getIndex(this));
+		}
+		return String.format("%s.%s", parent.getPath(), name);
+	}
 	
-//	private PathElement[] getPath(int length) {
-//		PathElement[] path;
-//		
-//		if (parent instanceof AbstractJsonTreeNode) {
-//			AbstractJsonTreeNode<NV,V> jsonParent = (AbstractJsonTreeNode<NV,V>) parent;
-//			
-//			PathElement pe =
-//					name!=null 
-//					? new PathElement(name)
-//					: new PathElement(jsonParent.getIndexOf(this));
-//			
-//			path = jsonParent.getPath(length+1);
-//			path[path.length-length-1] = pe;
-//			
-//			} else {
-//			PathElement pe =
-//					name!=null 
-//					? new PathElement(name)
-//					: new PathElement("<root>");
-//			
-//				path = new PathElement[length+1];
-//			path[0] = pe;
-//			}
-//		
-//		return path;
-//	}
-
-//	private int getIndexOf(AbstractJsonTreeNode<NV,V> jsonTreeNode) {
-//		return children.indexOf(jsonTreeNode);
-//	}
-
-//	static class PathElement {
-//		final Integer index;
-//		final String name;
-//		PathElement(int index) {
-//			this.name = null;
-//			this.index = index;
-//		}
-//		PathElement(String name) {
-//			this.name = name;
-//			this.index = null;
-//		}
-//		static String[] toStringArr(PathElement[] path) {
-//			return Arrays
-//					.stream(path)
-//					.<String>map(pe->pe.name!=null ? pe.name : String.format("[%d]", pe.index))
-//					.toArray(String[]::new);
-//		}
-//	}
+	public String getName()
+	{
+		if (parent==null) return "[root]";
+		if (name==null)
+		{
+			if (parent.value.type!=JSON_Data.Value.Type.Array)
+				return "<nameless value inside of non array>";
+			return "["+parent.getIndex(this)+"]";
+		}
+		return name;
+	}
+	
+	public String getValue() {
+		return getValueString();
+	}
 	
 	@Override
 	protected Vector<TreeNode> createChildren() {
@@ -125,7 +104,7 @@ public class AbstractJsonTreeNode<NV extends NamedValueExtra, V extends ValueExt
 		case String : return String.format("\"%s\"", value.castToStringValue ().value);
 		case Bool   : return String.format("%s"    , value.castToBoolValue   ().value);
 		case Float  : return                      ""+value.castToFloatValue  ().value ;
-		case Integer: return String.format("%d"    , value.castToIntegerValue().value);
+		case Integer: return String.format( "%d"   , value.castToIntegerValue().value);
 		case Array  : return String.format("[%d]"  , value.castToArrayValue  ().value.size());
 		case Object : return String.format("{%d}"  , value.castToObjectValue ().value.size());
 		case Null   : return "<null>";
@@ -198,7 +177,7 @@ public class AbstractJsonTreeNode<NV extends NamedValueExtra, V extends ValueExt
 			return null;
 		}
 		
-		protected Color getColor(Value<NV, V> value)
+		protected Color getColor(JSON_Data.Value<NV, V> value)
 		{
 			return null;
 		}
