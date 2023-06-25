@@ -11,20 +11,20 @@ public abstract class AbstractTreeNode implements TreeNode
 {
 	public interface CachedIcon { Icon getIcon(); }
 	
-	final TreeNode parent;
-	Vector<TreeNode> children;
-	final boolean allowsChildren;
-	final boolean isLeaf;
-	final CachedIcon icon;
-	final Color color;
+	public final TreeNode parent;
+	public Vector<TreeNode> children;
+	public final boolean allowsChildren;
+	public final boolean isLeaf;
+	public final CachedIcon icon;
+	public final Color color;
 
-	AbstractTreeNode(TreeNode parent, boolean allowsChildren, boolean isLeaf) {
+	public AbstractTreeNode(TreeNode parent, boolean allowsChildren, boolean isLeaf) {
 		this(parent, allowsChildren, isLeaf, null, null);
 	}
-	AbstractTreeNode(TreeNode parent, boolean allowsChildren, boolean isLeaf, CachedIcon icon) {
+	public AbstractTreeNode(TreeNode parent, boolean allowsChildren, boolean isLeaf, CachedIcon icon) {
 		this(parent, allowsChildren, isLeaf, icon, null);
 	}
-	AbstractTreeNode(TreeNode parent, boolean allowsChildren, boolean isLeaf, CachedIcon icon, Color color) {
+	public AbstractTreeNode(TreeNode parent, boolean allowsChildren, boolean isLeaf, CachedIcon icon, Color color) {
 		this.parent = parent;
 		this.allowsChildren = allowsChildren;
 		this.isLeaf = isLeaf;
@@ -33,8 +33,8 @@ public abstract class AbstractTreeNode implements TreeNode
 		children = null;
 	}
 	
-	Icon getIcon() { return icon==null ? null : icon.getIcon(); }
-	Color getColor() { return color; }
+	public Icon getIcon() { return icon==null ? null : icon.getIcon(); }
+	public Color getColor() { return color; }
 
 	@Override public abstract String toString();
 	protected abstract Vector<TreeNode> createChildren();
