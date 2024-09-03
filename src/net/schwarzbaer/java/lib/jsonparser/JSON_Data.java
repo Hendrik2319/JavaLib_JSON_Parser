@@ -34,12 +34,12 @@ public class JSON_Data {
 	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Value<NVExtra,VExtra> getSubNode(JSON_Object<NVExtra,VExtra> json_object, Object... path) throws TraverseException {
 		if (path==null || path.length==0) throw new IllegalArgumentException("getSubNode(JSON_Object) without a path is not allowed");
 		if (!(path[0] instanceof String)) throw new IllegalArgumentException("getSubNode(JSON_Object,path): First value of path must be a String");
-		return getSubNode(new ObjectValue<NVExtra,VExtra>(json_object,null), path);
+		return getSubNode(new ObjectValue<>(json_object,null), path);
 	}
 	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Value<NVExtra,VExtra> getSubNode(JSON_Array<NVExtra,VExtra> json_array, Object... path) throws TraverseException {
 		if (path==null || path.length==0)  throw new IllegalArgumentException("getSubNode(JSON_Array) without a path is not allowed");
 		if (!(path[0] instanceof Integer)) throw new IllegalArgumentException("getSubNode(JSON_Array,path): First value of path must be an Integer");
-		return getSubNode(new ArrayValue<NVExtra,VExtra>(json_array,null), path);
+		return getSubNode(new ArrayValue<>(json_array,null), path);
 	}
 	
 	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Value<NVExtra,VExtra> getSubNode(Value<NVExtra,VExtra> baseValue, Object... path) throws TraverseException {
@@ -208,7 +208,7 @@ public class JSON_Data {
 		}
 		
 		public <DataType> Vector<DataType> parseContent(DataTypeParser<DataType,NVExtra,VExtra> dataTypeParser, String debugOutputPrefixStr, String arrayLabel) throws TraverseException {
-	        Vector<DataType> values = new Vector<DataType>();
+	        Vector<DataType> values = new Vector<>();
 			for (int i=0; i<size(); i++)
 				values.add(dataTypeParser.parse(get(i), String.format("%s.%s[%d]", debugOutputPrefixStr, arrayLabel, i)));
 			return values;

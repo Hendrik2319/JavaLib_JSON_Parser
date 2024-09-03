@@ -205,7 +205,7 @@ public class JSON_Parser<NVExtra extends NamedValueExtra, VExtra extends ValueEx
 			throw new ParseException(parseInput.getCharPos(),"Character ':' expected after name string in object value. Got this: '%s',#%d", ch, (int)ch);
 		
 		Value<NVExtra,VExtra> value = read_Value();
-		return new NamedValue<NVExtra,VExtra>(name, value, createNamedValueExtra(value.type));
+		return new NamedValue<>(name, value, createNamedValueExtra(value.type));
 	}
 
 	private JSON_Object<NVExtra,VExtra> read_Object() throws ParseException {
