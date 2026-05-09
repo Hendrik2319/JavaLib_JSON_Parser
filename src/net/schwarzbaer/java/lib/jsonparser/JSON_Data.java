@@ -3,6 +3,7 @@ package net.schwarzbaer.java.lib.jsonparser;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Vector;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -220,11 +221,11 @@ public class JSON_Data {
 	}
 	
 	public static class GenericValue<NVExtra extends NamedValueExtra, VExtra extends ValueExtra, T> extends Value<NVExtra,VExtra> {
-		public T value;
+		public final T value;
 
 		public GenericValue(T value, Type type, VExtra extra) {
 			super(type,extra);
-			this.value = value;
+			this.value = Objects.requireNonNull( value );
 		}
 	}
 	
