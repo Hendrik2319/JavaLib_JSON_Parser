@@ -421,83 +421,124 @@ public class JSON_Data {
 	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Double                       getFloatValue(Value<NVExtra,VExtra> value) { return getValue(value, Type.Float  , Value::castToFloatValue  ); }
 	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> Null                          getNullValue(Value<NVExtra,VExtra> value) { return getValue(value, Type.Null   , Value::castToNullValue   ); }
 	
-	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> void traverseAllValues(
-			Value<NVExtra,VExtra> data,
+	public static <NV extends NamedValueExtra, V extends ValueExtra> void traverseAllValues(
+			Value<NV,V> data,
 			boolean pathWithArrayIndexes,
-			BiConsumer<String,NamedValue<NVExtra,VExtra>> consumerNV,
-			BiConsumer<String,     Value<NVExtra,VExtra>> consumerV
+			BiConsumer<String,NamedValue<NV,V>> consumerNV,
+			BiConsumer<String,     Value<NV,V>> consumerV
 	) {
-		if (data==null) throw new IllegalArgumentException();
-		if (consumerV !=null) consumerV .accept("",data);
-		if (data.type == Type.Object) traverseAllValues("", data.castToObjectValue().value, pathWithArrayIndexes, consumerNV, consumerV);
-		if (data.type == Type.Array ) traverseAllValues("", data.castToArrayValue ().value, pathWithArrayIndexes, consumerNV, consumerV);
+		new FullPathTreeWalker<>(pathWithArrayIndexes,consumerNV,consumerV).traverse(data);
 	}
-	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> void traverseAllValues(
-			JSON_Object<NVExtra,VExtra> data,
+	public static <NV extends NamedValueExtra, V extends ValueExtra> void traverseAllValues(
+			JSON_Object<NV,V> data,
 			boolean pathWithArrayIndexes,
-			BiConsumer<String,NamedValue<NVExtra,VExtra>> consumerNV,
-			BiConsumer<String,     Value<NVExtra,VExtra>> consumerV
+			BiConsumer<String,NamedValue<NV,V>> consumerNV,
+			BiConsumer<String,     Value<NV,V>> consumerV
 	) {
-		if (data==null) throw new IllegalArgumentException();
-		traverseAllValues("", data, pathWithArrayIndexes, consumerNV, consumerV);
+		new FullPathTreeWalker<>(pathWithArrayIndexes,consumerNV,consumerV).traverse(data);
 	}
-	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> void traverseAllValues(
-			JSON_Array<NVExtra,VExtra> data,
+	public static <NV extends NamedValueExtra, V extends ValueExtra> void traverseAllValues(
+			JSON_Array<NV,V> data,
 			boolean pathWithArrayIndexes,
-			BiConsumer<String,NamedValue<NVExtra,VExtra>> consumerNV,
-			BiConsumer<String,     Value<NVExtra,VExtra>> consumerV
+			BiConsumer<String,NamedValue<NV,V>> consumerNV,
+			BiConsumer<String,     Value<NV,V>> consumerV
 	) {
-		if (data==null) throw new IllegalArgumentException();
-		traverseAllValues("", data, pathWithArrayIndexes, consumerNV, consumerV);
+		new FullPathTreeWalker<>(pathWithArrayIndexes,consumerNV,consumerV).traverse(data);
 	}
-	private static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> void traverseAllValues(
-			String path, JSON_Object<NVExtra, VExtra> data,
+	public static <NV extends NamedValueExtra, V extends ValueExtra> void traverseNamedValues(
+			JSON_Object<NV,V> data,
 			boolean pathWithArrayIndexes,
-			BiConsumer<String, NamedValue<NVExtra, VExtra>> consumerNV,
-			BiConsumer<String,      Value<NVExtra, VExtra>> consumerV
+			BiConsumer<String,NamedValue<NV,V>> consumer
 	) {
-		String newPath;
-		for (NamedValue<NVExtra,VExtra> nv : data) {
-			Value<NVExtra, VExtra> v = nv.value;
-			newPath = path + (path.isEmpty()?"":".") + nv.name;
-			if (consumerNV!=null) consumerNV.accept(newPath,nv);
-			if (consumerV !=null) consumerV .accept(newPath,v);
-			if (v.type == Type.Object) traverseAllValues(newPath, v.castToObjectValue().value, pathWithArrayIndexes, consumerNV, consumerV);
-			if (v.type == Type.Array ) traverseAllValues(newPath, v.castToArrayValue ().value, pathWithArrayIndexes, consumerNV, consumerV);
-		}
+		new FullPathTreeWalker<>(pathWithArrayIndexes, consumer, null).traverse(data);
 	}
-	private static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> void traverseAllValues(
-			String path, JSON_Array<NVExtra, VExtra> array,
+	public static <NV extends NamedValueExtra, V extends ValueExtra> void traverseNamedValues(
+			JSON_Array<NV,V> data,
 			boolean pathWithArrayIndexes,
-			BiConsumer<String,NamedValue<NVExtra, VExtra>> consumerNV,
-			BiConsumer<String,     Value<NVExtra, VExtra>> consumerV
+			BiConsumer<String,NamedValue<NV,V>> consumer
 	) {
-		String newPath;
-		for (int i=0; i<array.size(); i++) {
-			Value<NVExtra,VExtra> v = array.get(i);
-			newPath = path + "["+(pathWithArrayIndexes?Integer.toString(i):"")+"]";
-			if (consumerV !=null) consumerV .accept(newPath,v);
-			if (v.type == Type.Object) traverseAllValues(newPath, v.castToObjectValue().value, pathWithArrayIndexes, consumerNV, consumerV);
-			if (v.type == Type.Array ) traverseAllValues(newPath, v.castToArrayValue ().value, pathWithArrayIndexes, consumerNV, consumerV);
-		}
+		new FullPathTreeWalker<>(pathWithArrayIndexes, consumer, null).traverse(data);
 	}
 	
-	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> void traverseNamedValues(
-			JSON_Object<NVExtra,VExtra> data,
-			boolean pathWithArrayIndexes,
-			BiConsumer<String,NamedValue<NVExtra,VExtra>> consumer
-	) {
-		if (data==null) throw new IllegalArgumentException();
-		traverseAllValues("", data, pathWithArrayIndexes, consumer, null);
+	public static class FullPathTreeWalker<NV extends NamedValueExtra, V extends ValueExtra>
+		extends AbstractTreeWalker<String,NV,V>
+	{
+		private final boolean pathWithArrayIndexes;
+		
+		FullPathTreeWalker(
+				boolean pathWithArrayIndexes,
+				BiConsumer<String, NamedValue<NV,V>> consumerNV,
+				BiConsumer<String,      Value<NV,V>> consumerV
+		) {
+			super(consumerNV, consumerV);
+			this.pathWithArrayIndexes = pathWithArrayIndexes;
+		}
+		
+		@Override protected String getRootPathValue() { return ""; }
+		@Override protected String getNextPathForElementOfObject(String path, String name) { return path + (path.isEmpty()?"":".") + name; }
+		@Override protected String getNextPathForElementOfArray (String path, int    i   ) { return path + "["+(pathWithArrayIndexes?Integer.toString(i):"")+"]"; }
 	}
 	
-	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> void traverseNamedValues(
-			JSON_Array<NVExtra,VExtra> data,
-			boolean pathWithArrayIndexes,
-			BiConsumer<String,NamedValue<NVExtra,VExtra>> consumer
-	) {
-		if (data==null) throw new IllegalArgumentException();
-		traverseAllValues("", data, pathWithArrayIndexes, consumer, null);
+	public static abstract class AbstractTreeWalker<PathType, NV extends NamedValueExtra, V extends ValueExtra>
+	{
+		private final BiConsumer<PathType, NamedValue<NV,V>> consumerNV;
+		private final BiConsumer<PathType,      Value<NV,V>> consumerV ;
+		
+		protected AbstractTreeWalker(
+				BiConsumer<PathType, NamedValue<NV,V>> consumerNV,
+				BiConsumer<PathType,      Value<NV,V>> consumerV
+		) {
+			this.consumerNV = consumerNV;
+			this.consumerV  = consumerV ;
+		}
+		
+		protected abstract PathType getRootPathValue();
+		protected abstract PathType getNextPathForElementOfObject(PathType path, String name);
+		protected abstract PathType getNextPathForElementOfArray (PathType path, int    i   );
+		
+		public void traverse( Value<NV,V> data )
+		{
+			if (data==null) throw new IllegalArgumentException();
+			if (consumerV !=null) consumerV .accept(getRootPathValue(),data);
+			if (data.type == Type.Object) traverse(getRootPathValue(), data.castToObjectValue().value);
+			if (data.type == Type.Array ) traverse(getRootPathValue(), data.castToArrayValue ().value);
+		}
+		public void traverse( JSON_Object<NV,V> data )
+		{
+			if (data==null) throw new IllegalArgumentException();
+			traverse(getRootPathValue(), data);
+		}
+
+		public void traverse( JSON_Array<NV,V> data )
+		{
+			if (data==null) throw new IllegalArgumentException();
+			traverse(getRootPathValue(), data);
+		}
+		
+		private void traverse( PathType path, JSON_Object<NV,V> data )
+		{
+			PathType newPath;
+			for (NamedValue<NV,V> nv : data) {
+				Value<NV,V> v = nv.value;
+				newPath = getNextPathForElementOfObject(path, nv.name);
+				if (consumerNV!=null) consumerNV.accept(newPath,nv);
+				if (consumerV !=null) consumerV .accept(newPath,v);
+				if (v.type == Type.Object) traverse(newPath, v.castToObjectValue().value);
+				if (v.type == Type.Array ) traverse(newPath, v.castToArrayValue ().value);
+			}
+		}
+
+		private void traverse( PathType path, JSON_Array<NV,V> array )
+		{
+			PathType newPath;
+			for (int i=0; i<array.size(); i++) {
+				Value<NV,V> v = array.get(i);
+				newPath = getNextPathForElementOfArray(path, i);
+				if (consumerV !=null) consumerV .accept(newPath,v);
+				if (v.type == Type.Object) traverse(newPath, v.castToObjectValue().value);
+				if (v.type == Type.Array ) traverse(newPath, v.castToArrayValue ().value);
+			}
+		}
 	}
 	
 	public static <NVExtra extends NamedValueExtra, VExtra extends ValueExtra> boolean isEmpty(Value<NVExtra, VExtra> value) {
