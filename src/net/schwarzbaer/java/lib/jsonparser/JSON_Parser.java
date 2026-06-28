@@ -130,7 +130,7 @@ public class JSON_Parser<NVExtra extends NamedValueExtra, VExtra extends ValueEx
 			try (StringWriter out = new StringWriter()) {
 				parseInput.input.transferTo(out);
 				String content = out.toString();
-				if (!parseInput.wasCharConsumed())
+				if (!parseInput.isEOF() && !parseInput.wasCharConsumed())
 					content = parseInput.getChar() + content;
 				consumeRemainingContent.accept(content);
 			} catch (IOException e) { e.printStackTrace(); } 
