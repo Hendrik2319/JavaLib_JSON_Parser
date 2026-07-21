@@ -23,10 +23,20 @@ public class JSON_Helper {
 			this.defaultPrefixStr = defaultPrefixStr;
 		}
 		
-		public SelfType add(String name, TypeType type) {
-			HashSet<TypeType> hashSet = knownValues.get(name);
-			if (hashSet==null) knownValues.put(name,hashSet = new HashSet<>());
-			hashSet.add(type);
+		private HashSet<TypeType> getOrCreateSet(String name)
+		{
+			return knownValues.computeIfAbsent(name, x -> new HashSet<>());
+		}
+
+		public SelfType add(String name, TypeType type)
+		{
+			getOrCreateSet(name).add(type);
+			return getThis();
+		}
+
+		public SelfType addAll(KnownValues<?,?,TypeType> other) {
+			if (other!=null)
+				other.knownValues.forEach((name,types) -> getOrCreateSet(name).addAll(types));
 			return getThis();
 		}
 		
