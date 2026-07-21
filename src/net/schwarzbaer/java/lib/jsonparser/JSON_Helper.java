@@ -110,6 +110,48 @@ public class JSON_Helper {
 		}
 	}
 	
+	public static class OptionalValues2<NV extends NamedValueExtra, V extends ValueExtra> extends OptionalValues<NV,V>
+	{
+		private static final long serialVersionUID = 3525584813303349863L;
+		
+		private final String packagePrefix;
+
+		public OptionalValues2(String packagePrefix)
+		{
+			this.packagePrefix = packagePrefix;
+		}
+		
+		public void scan(JSON_Data.Value<NV, V> value, Object source) {
+			scan(value, source.getClass());
+		}
+		public void scan(JSON_Data.Value<NV, V> value, Class<?> source) {
+			scan(value, getPrefixStr(source));
+		}
+		
+		public void scan(JSON_Array<NV, V> array, Object source) {
+			scan(array, source.getClass());
+		}
+		public void scan(JSON_Array<NV, V> array, Class<?> source) {
+			scan(array, getPrefixStr(source));
+		}
+		
+		public void scan(JSON_Object<NV, V> object, Object source) {
+			scan(object, source.getClass());
+		}
+		public void scan(JSON_Object<NV, V> object, Class<?> source) {
+			scan(object, getPrefixStr(source));
+		}
+
+		public String getPrefixStr(Class<?> source)
+		{
+			String prefixStr = source.getCanonicalName();
+			if (prefixStr.startsWith(packagePrefix))
+				prefixStr = prefixStr.substring(packagePrefix.length());
+			prefixStr = "["+prefixStr+"]";
+			return prefixStr;
+		}
+	}
+	
 	public static class OptionalValues<NV extends NamedValueExtra, V extends ValueExtra> extends HashMap<String,OptionalValues.BlockTypes> {
 		private static final long serialVersionUID = -8422934659235134268L;
 
